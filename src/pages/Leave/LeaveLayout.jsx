@@ -16,6 +16,7 @@ export default function LeaveLayout() {
     ...(isHrOrAdmin ? [{ label: 'All Leaves', path: '/leave/all' }] : []),
     { label: 'Calendar', path: '/leave/calendar' },
     { label: 'Balances', path: '/leave/balances' },
+    ...(isHrOrAdmin ? [{ label: 'Rules', path: '/leave/rules' }] : []),
   ];
 
   const current = tabs.find((t) => location.pathname.startsWith(t.path))?.path || tabs[0].path;

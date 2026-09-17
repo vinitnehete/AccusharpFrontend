@@ -59,6 +59,7 @@ import AllLeaves from './pages/Leave/AllLeaves';
 import BulkImportLeaves from './pages/Leave/BulkImportLeaves';
 import LeaveCalendar from './pages/Leave/Calendar';
 import LeaveBalances from './pages/Leave/Balances';
+import LeaveRules from './pages/Leave/LeaveRules';
 import PayrollLayout from './pages/Payroll/PayrollLayout';
 import PayrollGenerate from './pages/Payroll/Generate';
 import PayrollGenerateAll from './pages/Payroll/GenerateAll';
@@ -79,6 +80,7 @@ import OnboardCompany from './pages/Platform/OnboardCompany';
 const EmployeesReport = lazy(() => import('./pages/Reports/EmployeesReport'));
 const AttendanceMonthlyReport = lazy(() => import('./pages/Reports/AttendanceMonthlyReport'));
 const LateComingReport = lazy(() => import('./pages/Reports/LateComingReport'));
+const WeekOffWorkedReport = lazy(() => import('./pages/Reports/WeekOffWorkedReport'));
 const AbsentReport = lazy(() => import('./pages/Reports/AbsentReport'));
 const OvertimeReport = lazy(() => import('./pages/Reports/OvertimeReport'));
 const LopReport = lazy(() => import('./pages/Reports/LopReport'));
@@ -158,6 +160,7 @@ function App() {
             </Route>
             <Route element={<RequireRole allow={HR_ADMIN} />}>
               <Route path="all" element={<AllLeaves />} />
+              <Route path="rules" element={<LeaveRules />} />
             </Route>
           </Route>
 
@@ -244,6 +247,10 @@ function App() {
             <Route path="/reports/attendance/absent" element={withSuspense(<AbsentReport />)} />
             <Route path="/reports/attendance/overtime" element={withSuspense(<OvertimeReport />)} />
             <Route path="/reports/attendance/lop" element={withSuspense(<LopReport />)} />
+            <Route
+              path="/reports/attendance/week-off-worked"
+              element={withSuspense(<WeekOffWorkedReport />)}
+            />
             <Route path="/reports/leave-balances" element={withSuspense(<LeaveBalancesReport />)} />
             <Route path="/reports/payroll" element={withSuspense(<PayrollReport />)} />
             <Route

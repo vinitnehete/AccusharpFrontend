@@ -27,6 +27,7 @@ import DataTable from '../../components/DataTable';
 import StatusChip from '../../components/StatusChip';
 import EmployeePicker from '../../components/EmployeePicker';
 import attendanceApi from '../../api/attendance';
+import shiftsApi from '../../api/shifts';
 import { ATTENDANCE_STATUS, ATTENDANCE_STATUS_COLOR } from '../../constants/enums';
 import { useActingAs } from '../../context/ActingAsContext';
 import { formatHours } from '../../utils/hours';
@@ -39,6 +40,8 @@ function CorrectionDialog({ open, record, userId, onClose, onSaved }) {
   const [lastOut, setLastOut] = useState(null);
   const [status, setStatus] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [shiftCode, setShiftCode] = useState('');
+  const [shifts, setShifts] = useState([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -47,6 +50,14 @@ function CorrectionDialog({ open, record, userId, onClose, onSaved }) {
     setLastOut(record.lastOut ? dayjs(record.lastOut) : null);
     setStatus('');
     setRemarks('');
+    setShiftCode('');
+  }, [open, record]);
+
+  // Only a day with no shift needs one chosen, so the catalogue is fetched only
+  // then. Failing to load it just leaves the picker empty.
+  useEffect(() => {
+    if (!open || !record || record.shiftCode) return;
+    shiftsApi.list().then(setShifts).catch(() => setShifts([]));
   }, [open, record]);
 
   // Mirrors the backend's own rule (AttendanceCorrectionRequest): both times together,
@@ -54,7 +65,13 @@ function CorrectionDialog({ open, record, userId, onClose, onSaved }) {
   const bothTimesGiven = !!firstIn && !!lastOut;
   const noTimesGiven = !firstIn && !lastOut;
   const timesConsistent = noTimesGiven || (bothTimesGiven && lastOut.isAfter(firstIn));
-  const isValid = remarks.trim().length > 0 && timesConsistent && (bothTimesGiven || !!status);
+  // A day with no shift has nothing to measure times against - generation wrote
+  // it blank for exactly that reason - so times need a shift chosen alongside
+  // them. Without one the day could only be saved by forcing a status, with
+  // zero hours, which is the bug this picker exists to prevent.
+  const needsShift = bothTimesGiven && !record?.shiftCode;
+  const isValid = remarks.trim().length > 0 && timesConsistent && (bothTimesGiven || !!status)
+    && (!needsShift || !!shiftCode);
 
   const handleSubmit = () => {
     setSaving(true);
@@ -65,6 +82,9 @@ function CorrectionDialog({ open, record, userId, onClose, onSaved }) {
     }
     if (status) {
       payload.status = status;
+    }
+    if (needsShift && shiftCode) {
+      payload.shiftCode = shiftCode;
     }
     attendanceApi
       .correct(userId, record.attendanceDate, payload)
@@ -143,6 +163,30 @@ function CorrectionDialog({ open, record, userId, onClose, onSaved }) {
               ? 'Last out must be after first in.'
               : 'Provide both first in and last out, or clear both and declare a status instead.'}
           </Typography>
+        )}
+        {record.shiftCode ? (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
+            Shift: <strong>{record.shiftCode}</strong> — the times are measured against it. To change
+            a rostered shift, use the Roster planner.
+          </Typography>
+        ) : (
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label={needsShift ? 'Shift worked (required)' : 'Shift worked'}
+            value={shiftCode}
+            onChange={(e) => setShiftCode(e.target.value)}
+            error={needsShift && !shiftCode}
+            helperText="This day has no shift, so there is nothing to measure the times against. The shift you pick is added to the roster for this day."
+            sx={{ mt: 2 }}
+          >
+            {shifts.map((s) => (
+              <MenuItem key={s.shiftCode} value={s.shiftCode}>
+                {s.shiftCode} — {s.shiftName}
+              </MenuItem>
+            ))}
+          </TextField>
         )}
         <TextField
           select

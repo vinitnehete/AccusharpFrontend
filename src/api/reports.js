@@ -28,6 +28,8 @@ const reports = {
   overtime: (month) =>
     client.get('/reports/attendance/overtime', { params: { month } }).then((r) => r.data),
   lop: (month) => client.get('/reports/attendance/lop', { params: { month } }).then((r) => r.data),
+  weekOffWorked: (month) =>
+    client.get('/reports/attendance/week-off-worked', { params: { month } }).then((r) => r.data),
   leaveBalances: (year) =>
     client.get('/reports/leave-balances', { params: { year } }).then((r) => r.data),
   payroll: (month, year) =>

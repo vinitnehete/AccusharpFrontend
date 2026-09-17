@@ -226,13 +226,16 @@ export const RULE_CATALOG = {
   DAY_OFF_WORK: {
     label: 'Working a weekly off or holiday',
     evaluationScope: 'DAY',
-    summary: 'Chooses between overtime pay and a compensatory-off credit for a day off that was worked.',
+    summary: 'Chooses what a worked day off earns: overtime pay, a compensatory-off credit, or a paid day.',
     detail:
       'Be aware of what the alternative is actually worth. Overtime on any day is only the excess over '
       + 'the shift’s paid hours, so a full 8-hour shift worked on a Sunday books about five minutes of '
       + 'overtime today. A comp-off credit is not being traded against a day’s pay - it is being traded '
       + 'against those few minutes.',
-    effect: 'Where you pick comp-off, the day’s overtime is zeroed and a comp-off credit is recorded on the monthly summary instead.',
+    effect:
+      'Where you pick comp-off, the day’s overtime is zeroed and a comp-off credit is recorded on the '
+      + 'monthly summary instead. Where you pick a paid day, the day counts toward present days but never '
+      + 'toward working days - a day-wise worker is paid for it, and anyone else has an absence offset.',
     note:
       'Comp-off is recorded, not yet bookable: there is no comp-off leave type to accrue into yet, so the '
       + 'credit shows on the monthly attendance summary for HR to act on.',
@@ -250,6 +253,7 @@ export const RULE_CATALOG = {
         options: [
           { value: 'OVERTIME_PAY', label: 'Overtime pay (today’s behaviour)' },
           { value: 'COMP_OFF_CREDIT', label: 'A compensatory-off credit' },
+          { value: 'PAID_DAY', label: 'A paid day (counts toward present days)' },
         ],
       },
       {
@@ -259,18 +263,19 @@ export const RULE_CATALOG = {
         options: [
           { value: 'OVERTIME_PAY', label: 'Overtime pay (today’s behaviour)' },
           { value: 'COMP_OFF_CREDIT', label: 'A compensatory-off credit' },
+          { value: 'PAID_DAY', label: 'A paid day (counts toward present days)' },
         ],
       },
       {
         name: 'fullCreditMinutes',
-        label: 'A whole comp-off day needs',
+        label: 'A whole day’s credit needs',
         type: 'number',
         unit: 'minutes worked',
         min: 0,
       },
       {
         name: 'halfCreditMinutes',
-        label: 'Half a comp-off day needs',
+        label: 'Half a day’s credit needs',
         type: 'number',
         unit: 'minutes worked',
         min: 0,
@@ -279,16 +284,19 @@ export const RULE_CATALOG = {
     ],
     validate: (p) =>
       Number(p.halfCreditMinutes) > Number(p.fullCreditMinutes)
-        ? 'Half a comp-off day cannot need more minutes than a whole one.'
+        ? 'Half a day’s credit cannot need more minutes than a whole one.'
         : null,
     describe: (p) => {
-      const parts = [];
-      if (p.onWeeklyOff === 'COMP_OFF_CREDIT') parts.push('weekly off');
-      if (p.onHoliday === 'COMP_OFF_CREDIT') parts.push('holiday');
-      return parts.length
-        ? `A worked ${parts.join(' or ')} earns comp-off (${p.fullCreditMinutes} min = 1 day, ${
-            p.halfCreditMinutes} min = half a day) instead of overtime`
-        : 'A worked day off earns overtime pay, as it does today';
+      const earns = (treatment) => ({
+        COMP_OFF_CREDIT: 'comp-off',
+        PAID_DAY: 'a paid day',
+      }[treatment] || 'overtime pay');
+      const credited = [p.onWeeklyOff, p.onHoliday].some((t) => t === 'COMP_OFF_CREDIT' || t === 'PAID_DAY');
+      const tiers = credited
+        ? ` (${p.fullCreditMinutes} min = 1 day, ${p.halfCreditMinutes} min = half a day)`
+        : '';
+      return `A worked weekly off earns ${earns(p.onWeeklyOff)}; a worked holiday earns ${
+        earns(p.onHoliday)}${tiers}`;
     },
   },
 

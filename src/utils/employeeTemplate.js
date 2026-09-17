@@ -34,6 +34,7 @@ const SALARY_COLUMNS = [
   { field: 'medicalAllowance', required: true },
   { field: 'otherAllowance', required: true },
   { field: 'overtimeEligible', required: false },
+  { field: 'weekOffDays', required: false },
   { field: 'basicDA', required: false },
   { field: 'hra', required: false },
   { field: 'conveyanceAllowance', required: false },
@@ -51,6 +52,11 @@ const EXAMPLE_ROW = {
   uanNo: '', esicIpNo: '', bankAccountNo: '', bankIfscNo: '',
   grossSalary: '30000', pfBasic: '15000',
   medicalAllowance: '1250', otherAllowance: '1250', overtimeEligible: 'false',
+  // Day names in any order and any case; SAT/SUN abbreviations work too. Blank
+  // leaves the employee unconfigured: Sunday for permanent staff, no weekly off
+  // for anyone else.
+  // NONE is the explicit "this employee has no weekly off".
+  weekOffDays: 'SUNDAY',
   // Left blank so the example row still derives from the salary rule, same as before -
   // fill in all four (never just some) on a row to pin its exact structure instead.
   basicDA: '', hra: '', conveyanceAllowance: '', educationAllowance: '',

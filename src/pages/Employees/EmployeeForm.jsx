@@ -11,6 +11,9 @@ import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import FormHelperText from '@mui/material/FormHelperText';
 import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
 import IconButton from '@mui/material/IconButton';
@@ -22,7 +25,7 @@ import { useSnackbar } from 'notistack';
 import PageHeader from '../../components/PageHeader';
 import EmployeePicker from '../../components/EmployeePicker';
 import TempPasswordDialog from '../../components/TempPasswordDialog';
-import { EMPLOYEE_STATUS, ROLE, RECORD_STATUS, GENDER, labelize } from '../../constants/enums';
+import { EMPLOYEE_STATUS, ROLE, RECORD_STATUS, GENDER, DAYS_OF_WEEK, labelize } from '../../constants/enums';
 import employeesApi from '../../api/employees';
 import companiesApi from '../../api/companies';
 import departmentsApi from '../../api/departments';
@@ -58,6 +61,7 @@ const emptyForm = {
   medicalAllowance: '',
   otherAllowance: '',
   overtimeEligible: false,
+  weekOffDays: null,
   // Create-time-only escape hatch: skip rule-derivation and pin these four directly
   // (e.g. migrating from an existing payroll system that already has exact figures).
   structureOverride: false,
@@ -65,6 +69,27 @@ const emptyForm = {
   hra: '',
   conveyanceAllowance: '',
   educationAllowance: '',
+};
+
+// What an auto-rostered employee with nothing configured actually gets on the
+// server - see Employee.hasConfiguredWeekOffOn(). Shown pre-selected so the
+// toggle reflects the real answer rather than an empty row that reads as
+// "works every day". Anyone else with nothing configured has no weekly off.
+const DEFAULT_WEEK_OFF = ['SUNDAY'];
+
+const weekOffHelp = (days, autoRostered) => {
+  if (days === null || days === undefined) {
+    return autoRostered
+      ? 'Not set — this employee falls back to Sunday. Pick days to set it explicitly.'
+      : 'Not set — no weekly off. Every day with no shift assigned counts as absent.';
+  }
+  if (days.length === 0) {
+    return 'No weekly off — this employee is expected every day of the week.';
+  }
+  return autoRostered
+    ? 'Days this employee is not expected to work. Attendance marks them Weekly Off.'
+    : 'With no shift assigned these days read Weekly Off instead of Absent. Working one on an '
+      + 'assigned shift counts as usual, and shows in the Worked on Weekly Off report.';
 };
 
 export default function EmployeeForm() {
@@ -149,6 +174,7 @@ export default function EmployeeForm() {
         medicalAllowance: emp.medicalAllowance ?? '',
         otherAllowance: emp.otherAllowance ?? '',
         overtimeEligible: !!emp.overtimeEligible,
+        weekOffDays: emp.weekOffDays ?? null,
       });
       setLoading(false);
     });
@@ -156,6 +182,19 @@ export default function EmployeeForm() {
   }, [isEdit, id, companies, departments, designations, categories]);
 
   const set = (name, value) => setForm((prev) => ({ ...prev, [name]: value }));
+
+  // Mirrors Employee.autoRostersDefaultShift() and the day-wise pay basis: the
+  // employment type decides when one is picked, the legacy status otherwise.
+  const selectedType = employmentTypes.find((t) => String(t.id) === String(form.employmentTypeId));
+  const autoRostered = selectedType ? !!selectedType.autoRosterDefaultShift : form.status === 'PERMANENT';
+  const paidPerAttendedDay = selectedType
+    ? selectedType.payBasis === 'PER_ATTENDED_DAY'
+    : form.status === 'DAY_WISE';
+  // A new day-wise employee has their weekly off captured up front: left unset,
+  // every day nobody assigns them a shift for is an absence. An explicit empty
+  // choice ("works every day") satisfies it - what is required is a decision.
+  const weekOffRequired = !isEdit && paidPerAttendedDay;
+  const weekOffMissing = weekOffRequired && form.weekOffDays === null;
 
   const requiredOk = useMemo(
     () =>
@@ -167,13 +206,14 @@ export default function EmployeeForm() {
       form.designationId &&
       form.status &&
       form.role &&
+      !weekOffMissing &&
       form.grossSalary !== '' &&
       form.pfBasic !== '' &&
       form.medicalAllowance !== '' &&
       form.otherAllowance !== '' &&
       (!form.structureOverride ||
         (form.basicDA !== '' && form.hra !== '' && form.conveyanceAllowance !== '' && form.educationAllowance !== '')),
-    [form]
+    [form, weekOffMissing]
   );
 
   const handleSubmit = () => {
@@ -205,6 +245,11 @@ export default function EmployeeForm() {
       medicalAllowance: form.medicalAllowance,
       otherAllowance: form.otherAllowance,
       overtimeEligible: form.overtimeEligible,
+      // null is sent through deliberately: the server reads it as "leave this
+      // as it is" rather than "clear it", so an employee nobody has configured
+      // keeps falling back to Sunday. An empty array is the opposite - the
+      // explicit statement that this employee has no weekly off.
+      weekOffDays: form.weekOffDays,
       // Omitted entirely (not sent as null/empty) when the toggle is off, so the server
       // still derives the structure from the salary rule exactly as before this existed.
       ...(!isEdit && form.structureOverride
@@ -643,6 +688,29 @@ export default function EmployeeForm() {
                 }
                 label="Overtime eligible"
               />
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                Weekly off{weekOffRequired ? ' *' : ''}
+              </Typography>
+              <ToggleButtonGroup
+                size="small"
+                value={form.weekOffDays ?? (autoRostered ? DEFAULT_WEEK_OFF : [])}
+                onChange={(_e, days) => set('weekOffDays', days)}
+                aria-label="Weekly off days"
+              >
+                {DAYS_OF_WEEK.map((day) => (
+                  <ToggleButton key={day} value={day} aria-label={day}>
+                    {day.slice(0, 3)}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+              <FormHelperText error={weekOffMissing}>
+                {weekOffMissing
+                  ? 'Required for a day-wise employee — pick their weekly off.'
+                  : weekOffHelp(form.weekOffDays, autoRostered)}
+              </FormHelperText>
             </Grid>
 
             {!isEdit && (
