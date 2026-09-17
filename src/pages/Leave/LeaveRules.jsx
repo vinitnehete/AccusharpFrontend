@@ -29,6 +29,7 @@ import leaveRulesApi from '../../api/leaveRules';
 import leaveBalancesApi from '../../api/leaveBalances';
 import leaveSettingsApi from '../../api/leaveSettings';
 import { EMPLOYEE_STATUS, labelize } from '../../constants/enums';
+import { blankForm, grantsFor, withLeaveType } from './leaveRuleForm';
 
 // Unpaid leave has no balance, so it takes no rules.
 const RULE_LEAVE_TYPES = ['CASUAL_LEAVE', 'SICK_LEAVE', 'EARNED_LEAVE'];
@@ -39,29 +40,6 @@ const GRANT_LABEL = {
   NOT_ENTITLED: 'Not entitled',
 };
 
-// Only earned leave can be earned from attendance - mirrors LeaveRuleService.
-const grantsFor = (leaveType) =>
-  leaveType === 'EARNED_LEAVE'
-    ? ['EARNED_BY_ATTENDANCE', 'YEARLY_GRANT', 'NOT_ENTITLED']
-    : ['YEARLY_GRANT', 'NOT_ENTITLED'];
-
-const blankForm = () => ({
-  scope: 'COMPANY',
-  scopeRef: 'ANY',
-  leaveType: 'EARNED_LEAVE',
-  grantMethod: 'EARNED_BY_ATTENDANCE',
-  yearlyDays: '',
-  fullMonthCredit: '1.5',
-  upperStepDays: '20',
-  upperStepCredit: '1.0',
-  lowerStepDays: '10',
-  lowerStepCredit: '0.5',
-  daysPerStatutoryDay: '20',
-  carryForwardCap: '30',
-  excessOverCap: 'PAY_OUT',
-  effectiveFrom: dayjs().startOf('month'),
-  enabled: true,
-});
 
 const str = (v) => (v === null || v === undefined ? '' : String(v));
 const num = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
@@ -195,13 +173,8 @@ export default function LeaveRules() {
   const form = editing?.form;
   const set = (name, value) => setEditing((prev) => ({ ...prev, form: { ...prev.form, [name]: value } }));
 
-  // Switching leave type can make the chosen grant invalid (only EL is earned).
   const setLeaveType = (leaveType) =>
-    setEditing((prev) => {
-      const allowed = grantsFor(leaveType);
-      const grantMethod = allowed.includes(prev.form.grantMethod) ? prev.form.grantMethod : allowed[0];
-      return { ...prev, form: { ...prev.form, leaveType, grantMethod } };
-    });
+    setEditing((prev) => ({ ...prev, form: withLeaveType(prev.form, leaveType) }));
 
   const setScope = (scope) =>
     setEditing((prev) => ({
