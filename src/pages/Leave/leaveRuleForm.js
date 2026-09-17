@@ -1,10 +1,21 @@
 import dayjs from 'dayjs';
 
+export { SCOPES, SCOPE_LABEL, SCOPE_REF_LABEL, needsScopeRef } from '../../constants/scopes';
+
 // Only earned leave can be earned from attendance - mirrors LeaveRuleService.
+// Everything else is open to any paid type: a year's worth up front, a few days
+// credited each month, or nothing at all.
 export const grantsFor = (leaveType) =>
   leaveType === 'EARNED_LEAVE'
-    ? ['EARNED_BY_ATTENDANCE', 'YEARLY_GRANT', 'NOT_ENTITLED']
-    : ['YEARLY_GRANT', 'NOT_ENTITLED'];
+    ? ['EARNED_BY_ATTENDANCE', 'YEARLY_GRANT', 'MONTHLY_ACCRUAL', 'NOT_ENTITLED']
+    : ['YEARLY_GRANT', 'MONTHLY_ACCRUAL', 'NOT_ENTITLED'];
+
+/** Switching the population it applies to clears what the old one named. */
+export const withScope = (form, scope) => ({
+  ...form,
+  scope,
+  scopeRef: scope === 'EMPLOYMENT_TYPE' ? 'PERMANENT' : '',
+});
 
 // The OSH Code carry-forward limit for EL - prefilled on a new rule, and only
 // meaningful for earned leave.
@@ -22,6 +33,8 @@ export const blankForm = () => ({
   lowerStepDays: '10',
   lowerStepCredit: '0.5',
   daysPerStatutoryDay: '20',
+  monthlyCredit: '',
+  yearlyAccrualCap: '',
   carryForwardCap: EARNED_LEAVE_CARRY_FORWARD_DEFAULT,
   excessOverCap: 'PAY_OUT',
   effectiveFrom: dayjs().startOf('month'),

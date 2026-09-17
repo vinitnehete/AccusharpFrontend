@@ -29,7 +29,17 @@ import leaveRulesApi from '../../api/leaveRules';
 import leaveBalancesApi from '../../api/leaveBalances';
 import leaveSettingsApi from '../../api/leaveSettings';
 import { EMPLOYEE_STATUS, labelize } from '../../constants/enums';
-import { blankForm, grantsFor, withLeaveType } from './leaveRuleForm';
+import EmployeePicker from '../../components/EmployeePicker';
+import {
+  SCOPES,
+  SCOPE_LABEL,
+  SCOPE_REF_LABEL,
+  blankForm,
+  grantsFor,
+  needsScopeRef,
+  withLeaveType,
+  withScope,
+} from './leaveRuleForm';
 
 // Unpaid leave has no balance, so it takes no rules.
 const RULE_LEAVE_TYPES = ['CASUAL_LEAVE', 'SICK_LEAVE', 'EARNED_LEAVE'];
@@ -37,6 +47,7 @@ const RULE_LEAVE_TYPES = ['CASUAL_LEAVE', 'SICK_LEAVE', 'EARNED_LEAVE'];
 const GRANT_LABEL = {
   YEARLY_GRANT: 'A yearly amount',
   EARNED_BY_ATTENDANCE: 'Earned from attendance',
+  MONTHLY_ACCRUAL: 'A few days each month',
   NOT_ENTITLED: 'Not entitled',
 };
 
@@ -59,6 +70,8 @@ const toForm = (rule) => {
     lowerStepDays: str(lower?.minDays ?? 10),
     lowerStepCredit: str(lower?.credit ?? '0.5'),
     daysPerStatutoryDay: str(rule.daysPerStatutoryDay ?? 20),
+    monthlyCredit: str(rule.monthlyCredit),
+    yearlyAccrualCap: str(rule.yearlyAccrualCap),
     carryForwardCap: str(rule.carryForwardCap),
     excessOverCap: rule.excessOverCap || 'PAY_OUT',
     effectiveFrom: dayjs(rule.effectiveFrom),
@@ -76,10 +89,12 @@ const toPayload = (form) => {
     .map(([days, credit]) => ({ minDays: Number(days), credit: Number(credit) }));
   return {
     scope: form.scope,
-    scopeRef: form.scope === 'COMPANY' ? 'ANY' : form.scopeRef,
+    scopeRef: needsScopeRef(form.scope) ? form.scopeRef.trim() : null,
     leaveType: form.leaveType,
     grantMethod: form.grantMethod,
     yearlyDays: form.grantMethod === 'YEARLY_GRANT' ? num(form.yearlyDays) : null,
+    monthlyCredit: form.grantMethod === 'MONTHLY_ACCRUAL' ? num(form.monthlyCredit) : null,
+    yearlyAccrualCap: num(form.yearlyAccrualCap),
     fullMonthCredit: earned ? num(form.fullMonthCredit) : null,
     creditSteps: earned ? steps : null,
     daysPerStatutoryDay: earned ? num(form.daysPerStatutoryDay) : null,
@@ -94,6 +109,9 @@ const toPayload = (form) => {
 const describe = (rule) => {
   if (rule.grantMethod === 'NOT_ENTITLED') return 'None';
   if (rule.grantMethod === 'YEARLY_GRANT') return `${rule.yearlyDays} days a year`;
+  if (rule.grantMethod === 'MONTHLY_ACCRUAL') {
+    return `${rule.monthlyCredit} a month${rule.yearlyAccrualCap ? `, up to ${rule.yearlyAccrualCap} a year` : ''}`;
+  }
   const steps = [...(rule.creditSteps || [{ minDays: 20, credit: 1 }, { minDays: 10, credit: 0.5 }])]
     .sort((a, b) => b.minDays - a.minDays)
     .map((s) => `${s.minDays} days = ${s.credit}`)
@@ -176,15 +194,15 @@ export default function LeaveRules() {
   const setLeaveType = (leaveType) =>
     setEditing((prev) => ({ ...prev, form: withLeaveType(prev.form, leaveType) }));
 
-  const setScope = (scope) =>
-    setEditing((prev) => ({
-      ...prev,
-      form: { ...prev.form, scope, scopeRef: scope === 'COMPANY' ? 'ANY' : 'PERMANENT' },
-    }));
+  const setScope = (scope) => setEditing((prev) => ({ ...prev, form: withScope(prev.form, scope) }));
 
   const yearly = form?.grantMethod === 'YEARLY_GRANT';
   const earned = form?.grantMethod === 'EARNED_BY_ATTENDANCE';
-  const valid = !!form && !!form.effectiveFrom && (!yearly || form.yearlyDays !== '');
+  const monthly = form?.grantMethod === 'MONTHLY_ACCRUAL';
+  const valid = !!form && !!form.effectiveFrom
+    && (!yearly || form.yearlyDays !== '')
+    && (!monthly || form.monthlyCredit !== '')
+    && (!needsScopeRef(form.scope) || !!(form.scopeRef || '').trim());
 
   const handleSave = () => {
     setSaving(true);
@@ -232,7 +250,7 @@ export default function LeaveRules() {
       field: 'scopeRef',
       headerName: 'Who',
       width: 130,
-      valueGetter: (v, row) => (row.scope === 'COMPANY' ? 'Everyone' : labelize(row.scopeRef)),
+      valueGetter: (v, row) => (needsScopeRef(row.scope) ? `${labelize(row.scope)}: ${row.scopeRef}` : 'Everyone'),
     },
     { field: 'grantMethod', headerName: 'How', width: 170, valueFormatter: (v) => GRANT_LABEL[v] || v },
     { field: 'detail', headerName: 'Gives', flex: 1, minWidth: 280, valueGetter: (v, row) => describe(row) },
@@ -370,18 +388,30 @@ export default function LeaveRules() {
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField select fullWidth size="small" label="Applies to" value={form.scope}
                   onChange={(e) => setScope(e.target.value)}>
-                  <MenuItem value="COMPANY">Everyone in the company</MenuItem>
-                  <MenuItem value="EMPLOYMENT_TYPE">One employment type</MenuItem>
+                  {SCOPES.map((scope) => (
+                    <MenuItem key={scope} value={scope}>{SCOPE_LABEL[scope]}</MenuItem>
+                  ))}
                 </TextField>
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 {form.scope === 'EMPLOYMENT_TYPE' && (
-                  <TextField select fullWidth size="small" label="Employment type" value={form.scopeRef}
+                  <TextField select fullWidth size="small" label={SCOPE_REF_LABEL.EMPLOYMENT_TYPE}
+                    value={form.scopeRef}
                     onChange={(e) => set('scopeRef', e.target.value)}>
                     {EMPLOYEE_STATUS.map((s) => (
                       <MenuItem key={s} value={s}>{labelize(s)}</MenuItem>
                     ))}
                   </TextField>
+                )}
+                {form.scope === 'EMPLOYEE' && (
+                  <EmployeePicker label={SCOPE_REF_LABEL.EMPLOYEE} value={form.scopeRef || null}
+                    onChange={(userId) => set('scopeRef', userId || '')} required />
+                )}
+                {needsScopeRef(form.scope) && !['EMPLOYEE', 'EMPLOYMENT_TYPE'].includes(form.scope) && (
+                  <TextField fullWidth size="small" required label={SCOPE_REF_LABEL[form.scope]}
+                    value={form.scopeRef}
+                    onChange={(e) => set('scopeRef', e.target.value)}
+                    helperText="The code exactly as the master holds it" />
                 )}
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -406,6 +436,22 @@ export default function LeaveRules() {
                   <TextField fullWidth size="small" required label="Days a year" value={form.yearlyDays}
                     onChange={(e) => set('yearlyDays', digits(e.target.value))}
                     helperText="Someone joining mid-year gets the months left, to the nearest half day." />
+                </Grid>
+              )}
+
+              {monthly && (
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField fullWidth size="small" required label="Days a month" value={form.monthlyCredit}
+                    onChange={(e) => set('monthlyCredit', digits(e.target.value))}
+                    helperText="Credited when each month's payroll is generated, for a whole month on the books." />
+                </Grid>
+              )}
+
+              {(earned || monthly) && (
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField fullWidth size="small" label="Accrue at most, a year" value={form.yearlyAccrualCap}
+                    onChange={(e) => set('yearlyAccrualCap', digits(e.target.value))}
+                    helperText="Leave blank for no ceiling. The month that reaches it credits the remainder." />
                 </Grid>
               )}
 

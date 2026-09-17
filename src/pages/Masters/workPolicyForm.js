@@ -1,25 +1,9 @@
 import dayjs from 'dayjs';
+import { needsScopeRef } from '../../constants/scopes';
 
-// Mirrors RuleScope on the backend, most specific first - the order the
-// resolver applies them in, so the list reads the way the rules resolve.
-export const SCOPES = ['EMPLOYEE', 'DESIGNATION', 'CATEGORY', 'DEPARTMENT', 'EMPLOYMENT_TYPE', 'COMPANY'];
-
-export const SCOPE_LABEL = {
-  EMPLOYEE: 'One employee',
-  DESIGNATION: 'A designation',
-  CATEGORY: 'A category',
-  DEPARTMENT: 'A department',
-  EMPLOYMENT_TYPE: 'An employment type',
-  COMPANY: 'Everyone in the company',
-};
-
-export const SCOPE_REF_LABEL = {
-  EMPLOYEE: 'Employee user ID',
-  DESIGNATION: 'Designation code',
-  CATEGORY: 'Category code',
-  DEPARTMENT: 'Department code',
-  EMPLOYMENT_TYPE: 'Employment type',
-};
+// The scope list is shared with the leave rule screen - one description of the
+// populations a rule can name, for every engine that resolves by scope.
+export { SCOPES, SCOPE_LABEL, SCOPE_REF_LABEL, needsScopeRef } from '../../constants/scopes';
 
 export const TRACKING_LABEL = {
   TRACKED: 'Tracked - rostered, punched and generated',
@@ -36,9 +20,6 @@ export const LEAVE_APPROVAL_LABEL = {
   HR_ONLY: 'HR approves directly - no endorsement step',
   AUTO_APPROVE: 'Approved automatically when applied for',
 };
-
-/** COMPANY covers everybody, so it names nothing; every other scope names one thing. */
-export const needsScopeRef = (scope) => scope !== 'COMPANY';
 
 export const blankForm = () => ({
   scope: 'COMPANY',
