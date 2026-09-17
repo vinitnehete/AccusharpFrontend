@@ -25,6 +25,7 @@ const HR_ADMIN_PERMISSIONS = [
   'DASHBOARD_READ',
   // How far HR and ADMIN see - the whole company. See DataScope.
   'SCOPE_COMPANY',
+  'WORK_POLICY_READ', 'WORK_POLICY_MANAGE',
 ];
 
 export const ROLE_PERMISSIONS = {
@@ -98,6 +99,7 @@ export const PERMISSION_CODES = [
   'DASHBOARD_READ',
   'ROLE_MANAGE', 'ROLE_READ',
   'SCOPE_DIRECT_REPORTS', 'SCOPE_ALL_REPORTS', 'SCOPE_COMPANY',
+  'WORK_POLICY_READ', 'WORK_POLICY_MANAGE',
   'COMPANY_READ', 'AUDIT_READ',
 ];
 
@@ -134,6 +136,8 @@ export const PERMISSION_GROUPS = [
   // Whose records the holder reaches, rather than what they may do - the
   // director's scope lives here (see DataScope on the backend).
   { label: 'Data scope', codes: ['SCOPE_DIRECT_REPORTS', 'SCOPE_ALL_REPORTS', 'SCOPE_COMPANY'] },
+  // Who follows the attendance process, and who is simply paid a salary.
+  { label: 'Work policy', codes: ['WORK_POLICY_MANAGE', 'WORK_POLICY_READ'] },
 ];
 
 // What a session may do: the list the server sent at login or refresh - the
