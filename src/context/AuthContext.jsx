@@ -159,7 +159,7 @@ export function AuthProvider({ children }) {
 
   const can = useCallback((code) => permissions.includes(code), [permissions]);
   // Whether an ACCESS rule (constants/access.js) lets this session into an area.
-  const canAccess = useCallback((rule) => isAllowed(rule, { role, permissions }), [role, permissions]);
+  const canAccess = useCallback((rule) => isAllowed(rule, { permissions }), [permissions]);
 
   const value = useMemo(
     () => ({

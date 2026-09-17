@@ -46,8 +46,14 @@ describe('sidebar visibility', () => {
 
     expect(shown).toEqual(expect.arrayContaining(['Attendance Console', 'Reports']));
     expect(shown).not.toContain('Payroll');
-    // Seeing a team stays with the fixed SUPERVISOR role; a custom role does not create a team.
+    // A capability is not a scope - these grant no team.
     expect(shown).not.toContain('My Team');
+  });
+
+  it('shows team screens to a director whose custom role grants the scope', () => {
+    const shown = labels(visibleNav(navConfig, session('EMPLOYEE', ['SCOPE_ALL_REPORTS'])));
+
+    expect(shown).toContain('My Team');
   });
 
   it('drops a section with nothing left in it', () => {

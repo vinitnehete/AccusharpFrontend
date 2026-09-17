@@ -10,10 +10,13 @@ describe('area access rules', () => {
     expect(isAllowed(ACCESS.leaveApprovals, session('EMPLOYEE', ['LEAVE_APPROVE']))).toBe(true);
   });
 
-  it('keeps team access with the fixed role, whatever a custom role adds', () => {
+  it('opens team screens on a scope, which a fixed role carries and a custom role can grant', () => {
     expect(isAllowed(ACCESS.team, session('SUPERVISOR'))).toBe(true);
     expect(isAllowed(ACCESS.team, session('HR'))).toBe(true);
+    // A capability is not a scope: these say what may be done, not to whom.
     expect(isAllowed(ACCESS.team, session('EMPLOYEE', ['LEAVE_SUPERVISOR_APPROVE', 'SHIFT_SCHEDULE_MANAGE']))).toBe(false);
+    // A director's scope, granted through a custom role.
+    expect(isAllowed(ACCESS.team, session('EMPLOYEE', ['SCOPE_ALL_REPORTS']))).toBe(true);
   });
 
   it('opens the audit log to a platform owner, not only a company admin', () => {

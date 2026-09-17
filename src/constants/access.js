@@ -1,18 +1,18 @@
 // Who may open each area of the app - read by the sidebar (navConfig) and the
 // route guards (App.js) alike, so the two can never disagree.
 //
-// Almost every rule is "any one of these permissions", checked against the
-// permission list the server sent at login - the fixed role's grants plus any
-// custom roles - so a custom role opens exactly the screens its permissions
-// allow. The one exception is team access, which stays with the fixed role:
-// seeing a team comes from being a SUPERVISOR (or HR/ADMIN), not from a
-// permission a custom role could hand to anyone.
+// Every rule is "any one of these permissions", checked against the permission
+// list the server sent at login - the fixed role's grants plus any custom roles
+// - so a custom role opens exactly the screens its permissions allow. Team
+// screens ask for a scope permission rather than a capability: reaching other
+// people's records is SCOPE_DIRECT_REPORTS (a supervisor), SCOPE_ALL_REPORTS (a
+// director, every team below them) or SCOPE_COMPANY (HR/ADMIN).
 
 const anyOf = (...permissions) => ({ permissions });
 
 export const ACCESS = {
   dashboard: anyOf('DASHBOARD_READ'),
-  team: { roles: ['SUPERVISOR', 'HR', 'ADMIN'] },
+  team: anyOf('SCOPE_DIRECT_REPORTS', 'SCOPE_ALL_REPORTS', 'SCOPE_COMPANY'),
   leaveApprovals: anyOf('LEAVE_SUPERVISOR_APPROVE', 'LEAVE_APPROVE'),
   leaveAll: anyOf('LEAVE_APPROVE'),
   leaveRules: anyOf('LEAVE_BALANCE_MANAGE'),
@@ -42,8 +42,5 @@ export const ACCESS = {
 };
 
 // No rule means open to every signed-in user.
-export const isAllowed = (rule, { role, permissions = [] } = {}) => {
-  if (!rule) return true;
-  if (rule.roles) return !!role && rule.roles.includes(role);
-  return rule.permissions.some((code) => permissions.includes(code));
-};
+export const isAllowed = (rule, { permissions = [] } = {}) =>
+  !rule || rule.permissions.some((code) => permissions.includes(code));

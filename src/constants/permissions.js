@@ -23,6 +23,8 @@ const HR_ADMIN_PERMISSIONS = [
   'SALARY_SLIP_READ',
   'REPORT_READ',
   'DASHBOARD_READ',
+  // How far HR and ADMIN see - the whole company. See DataScope.
+  'SCOPE_COMPANY',
 ];
 
 export const ROLE_PERMISSIONS = {
@@ -48,6 +50,9 @@ export const ROLE_PERMISSIONS = {
     'SALARY_SLIP_READ',
     'REPORT_READ',
     'DASHBOARD_READ',
+    // A supervisor's own team; a director's wider reach is SCOPE_ALL_REPORTS,
+    // granted through a custom role.
+    'SCOPE_DIRECT_REPORTS',
   ],
   EMPLOYEE: [
     'COMPANY_READ',
@@ -92,6 +97,7 @@ export const PERMISSION_CODES = [
   'REPORT_READ',
   'DASHBOARD_READ',
   'ROLE_MANAGE', 'ROLE_READ',
+  'SCOPE_DIRECT_REPORTS', 'SCOPE_ALL_REPORTS', 'SCOPE_COMPANY',
   'COMPANY_READ', 'AUDIT_READ',
 ];
 
@@ -125,6 +131,9 @@ export const PERMISSION_GROUPS = [
   { label: 'Reports & dashboard', codes: ['REPORT_READ', 'DASHBOARD_READ'] },
   { label: 'Custom roles', codes: ['ROLE_MANAGE', 'ROLE_READ'] },
   { label: 'Audit log', codes: ['AUDIT_READ'] },
+  // Whose records the holder reaches, rather than what they may do - the
+  // director's scope lives here (see DataScope on the backend).
+  { label: 'Data scope', codes: ['SCOPE_DIRECT_REPORTS', 'SCOPE_ALL_REPORTS', 'SCOPE_COMPANY'] },
 ];
 
 // What a session may do: the list the server sent at login or refresh - the

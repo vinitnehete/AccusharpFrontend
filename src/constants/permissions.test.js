@@ -25,6 +25,7 @@ const BACKEND_PERMISSION_CODES = [
   'DASHBOARD_READ',
   'AUDIT_READ', 'AUDIT_MANAGE',
   'ROLE_MANAGE', 'ROLE_READ',
+  'SCOPE_DIRECT_REPORTS', 'SCOPE_ALL_REPORTS', 'SCOPE_COMPANY',
 ];
 
 const sorted = (codes) => [...codes].sort();
