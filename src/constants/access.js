@@ -32,7 +32,7 @@ export const ACCESS = {
   // DEPARTMENT_READ and friends just to label records, not to administer them.
   masters: anyOf(
     'DEPARTMENT_MANAGE', 'DESIGNATION_MANAGE', 'CATEGORY_MANAGE',
-    'EMPLOYMENT_TYPE_READ', 'SALARY_RULE_READ', 'ATTENDANCE_RULE_READ'
+    'EMPLOYMENT_TYPE_READ', 'SALARY_RULE_READ', 'ATTENDANCE_RULE_READ', 'WORK_POLICY_READ'
   ),
   // Reports are scoped server-side: HR/ADMIN see the company, a supervisor their team.
   reports: anyOf('REPORT_READ'),

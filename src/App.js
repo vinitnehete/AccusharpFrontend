@@ -23,6 +23,7 @@ import Categories from './pages/Masters/Categories';
 import EmploymentTypes from './pages/Masters/EmploymentTypes';
 import SalaryRule from './pages/Masters/SalaryRule';
 import AttendanceRule from './pages/Masters/AttendanceRule';
+import WorkPolicies from './pages/Masters/WorkPolicies';
 import EmployeeList from './pages/Employees/EmployeeList';
 import EmployeeForm from './pages/Employees/EmployeeForm';
 import EmployeeDetail from './pages/Employees/EmployeeDetail';
@@ -213,6 +214,7 @@ function App() {
               <Route path="employment-types" element={<EmploymentTypes />} />
               <Route path="salary-rule" element={<SalaryRule />} />
               <Route path="attendance-rule" element={<AttendanceRule />} />
+              <Route path="work-policies" element={<WorkPolicies />} />
             </Route>
           </Route>
 
