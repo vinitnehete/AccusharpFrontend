@@ -75,6 +75,7 @@ export const PERMISSION_CODES = [
   'DESIGNATION_MANAGE', 'DESIGNATION_READ',
   'CATEGORY_MANAGE', 'CATEGORY_READ',
   'EMPLOYMENT_TYPE_READ', 'EMPLOYMENT_TYPE_MANAGE',
+  'CONTRACTOR_READ', 'CONTRACTOR_MANAGE',
   'EMPLOYEE_CREATE', 'EMPLOYEE_READ', 'EMPLOYEE_UPDATE', 'EMPLOYEE_DELETE',
   'SHIFT_MANAGE', 'SHIFT_READ',
   'SHIFT_SCHEDULE_MANAGE', 'SHIFT_SCHEDULE_READ',
@@ -97,5 +98,32 @@ export const PERMISSION_CODES = [
 // CustomRoleService.setPermissions rejects outright (see SECURITY.md Phase 10) -
 // never offered in a custom role's permission checklist, mirroring that guard.
 export const PLATFORM_ONLY_CODES = ['COMPANY_CREATE', 'COMPANY_UPDATE', 'COMPANY_DELETE', 'AUDIT_MANAGE'];
+
+// The custom-role checklist (RoleDetail), grouped so it scans. Every code in
+// PERMISSION_CODES appears exactly once (permissions.test.js holds this);
+// platform-only codes are never offered.
+export const PERMISSION_GROUPS = [
+  { label: 'Company', codes: ['COMPANY_READ'] },
+  { label: 'Department', codes: ['DEPARTMENT_MANAGE', 'DEPARTMENT_READ'] },
+  { label: 'Designation', codes: ['DESIGNATION_MANAGE', 'DESIGNATION_READ'] },
+  { label: 'Category', codes: ['CATEGORY_MANAGE', 'CATEGORY_READ'] },
+  { label: 'Employment type', codes: ['EMPLOYMENT_TYPE_MANAGE', 'EMPLOYMENT_TYPE_READ'] },
+  { label: 'Employee', codes: ['EMPLOYEE_CREATE', 'EMPLOYEE_READ', 'EMPLOYEE_UPDATE', 'EMPLOYEE_DELETE'] },
+  { label: 'Contractor', codes: ['CONTRACTOR_MANAGE', 'CONTRACTOR_READ'] },
+  { label: 'Shift', codes: ['SHIFT_MANAGE', 'SHIFT_READ'] },
+  { label: 'Shift schedule', codes: ['SHIFT_SCHEDULE_MANAGE', 'SHIFT_SCHEDULE_READ'] },
+  { label: 'Attendance', codes: ['ATTENDANCE_READ', 'ATTENDANCE_GENERATE', 'ATTENDANCE_CORRECT', 'ATTENDANCE_UNLOCK'] },
+  { label: 'Attendance rule', codes: ['ATTENDANCE_RULE_MANAGE', 'ATTENDANCE_RULE_READ'] },
+  { label: 'Attendance policy', codes: ['ATTENDANCE_POLICY_MANAGE', 'ATTENDANCE_POLICY_READ'] },
+  { label: 'Holiday', codes: ['HOLIDAY_MANAGE', 'HOLIDAY_READ'] },
+  { label: 'Leave', codes: ['LEAVE_APPLY', 'LEAVE_READ', 'LEAVE_SUPERVISOR_APPROVE', 'LEAVE_APPROVE'] },
+  { label: 'Leave balance', codes: ['LEAVE_BALANCE_READ', 'LEAVE_BALANCE_MANAGE'] },
+  { label: 'Salary rule', codes: ['SALARY_RULE_READ', 'SALARY_RULE_MANAGE'] },
+  { label: 'Payroll', codes: ['PAYROLL_PROCESS', 'PAYROLL_READ'] },
+  { label: 'Salary slip', codes: ['SALARY_SLIP_READ'] },
+  { label: 'Reports & dashboard', codes: ['REPORT_READ', 'DASHBOARD_READ'] },
+  { label: 'Custom roles', codes: ['ROLE_MANAGE', 'ROLE_READ'] },
+  { label: 'Audit log', codes: ['AUDIT_READ'] },
+];
 
 export const hasPermission = (role, code) => !!role && (ROLE_PERMISSIONS[role] || []).includes(code);
