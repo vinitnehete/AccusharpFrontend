@@ -46,6 +46,16 @@ export const registerAuthExpiredHandler = (handler) => {
   onAuthExpired = handler;
 };
 
+// Fired with the new session whenever a request silently refreshed an expired
+// access token. AuthContext registers this so a role or permission changed
+// server-side - a custom role assigned, a promotion to SUPERVISOR - reaches
+// the UI within one token lifetime instead of waiting for a logout.
+let onSessionRefreshed = null;
+
+export const registerSessionRefreshedHandler = (handler) => {
+  onSessionRefreshed = handler;
+};
+
 const isAuthEndpoint = (url) =>
   typeof url === 'string' && (url.includes('/auth/login') || url.includes('/auth/refresh'));
 
@@ -111,6 +121,7 @@ client.interceptors.response.use(
       original._retried = true;
       return doRefresh()
         .then((updated) => {
+          if (onSessionRefreshed) onSessionRefreshed(updated);
           original.headers = { ...original.headers, Authorization: `Bearer ${updated.accessToken}` };
           return client(original);
         })

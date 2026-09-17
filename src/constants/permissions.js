@@ -1,5 +1,6 @@
 // Mirrors backend PermissionSeeder.java's role -> permission grants by hand.
-// Keep in sync the same way constants/enums.js already is.
+// Keep in sync the same way constants/enums.js already is. Only a fallback now:
+// the server sends each session's real permissions (see resolvePermissions).
 
 const HR_ADMIN_PERMISSIONS = [
   'COMPANY_READ',
@@ -126,4 +127,8 @@ export const PERMISSION_GROUPS = [
   { label: 'Audit log', codes: ['AUDIT_READ'] },
 ];
 
-export const hasPermission = (role, code) => !!role && (ROLE_PERMISSIONS[role] || []).includes(code);
+// What a session may do: the list the server sent at login or refresh - the
+// fixed role's grants plus any custom roles - or, from a server too old to send
+// one, the fixed role's grants alone.
+export const resolvePermissions = (session) =>
+  Array.isArray(session?.permissions) ? session.permissions : ROLE_PERMISSIONS[session?.role] || [];

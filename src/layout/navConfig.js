@@ -19,22 +19,18 @@ import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import AdminPanelSettingsRoundedIcon from '@mui/icons-material/AdminPanelSettingsRounded';
 import DomainAddRoundedIcon from '@mui/icons-material/DomainAddRounded';
 import EngineeringRoundedIcon from '@mui/icons-material/EngineeringRounded';
+import { ACCESS, isAllowed } from '../constants/access';
 
-// Exported so RequireRole (route-level guarding, see App.js) reads the exact
-// same role lists as the sidebar's own visibility check - one source of truth
-// for "who can see this" instead of two lists that could drift apart.
-export const HR_ADMIN = ['HR', 'ADMIN'];
-export const SUP_HR_ADMIN = ['SUPERVISOR', 'HR', 'ADMIN'];
-export const ADMIN_ONLY = ['ADMIN'];
-export const PLATFORM_ONLY = ['PLATFORM_OWNER', 'PLATFORM_ADMIN'];
-
+// Each item names the ACCESS rule that opens it - the same rule its route is
+// guarded by in App.js, so the sidebar never offers a page the router refuses.
+// An item with no rule is open to everyone signed in to a company.
 const navConfig = [
   {
     label: 'Overview',
     items: [
       // Plain EMPLOYEE has no DASHBOARD_READ permission - see PermissionSeeder -
       // and is routed to /attendance/me instead (App.js's RootRedirect).
-      { label: 'Dashboard', path: '/', icon: DashboardRoundedIcon, visibleFor: SUP_HR_ADMIN },
+      { label: 'Dashboard', path: '/', icon: DashboardRoundedIcon, access: ACCESS.dashboard },
     ],
   },
   {
@@ -51,98 +47,95 @@ const navConfig = [
   {
     label: 'Team',
     items: [
-      { label: 'My Team', path: '/team', icon: GroupsRoundedIcon, visibleFor: SUP_HR_ADMIN },
+      { label: 'My Team', path: '/team', icon: GroupsRoundedIcon, access: ACCESS.team },
       {
         label: 'Pending Approvals',
         path: '/leave/approvals',
         icon: PendingActionsRoundedIcon,
-        visibleFor: SUP_HR_ADMIN,
+        access: ACCESS.leaveApprovals,
       },
       {
         label: 'Roster Planner',
         path: '/roster/planner',
         icon: CalendarMonthRoundedIcon,
-        visibleFor: SUP_HR_ADMIN,
+        access: ACCESS.roster,
       },
     ],
   },
   {
     label: 'HR Admin',
-    visibleFor: HR_ADMIN,
     items: [
-      { label: 'Employees', path: '/employees', icon: BadgeRoundedIcon, visibleFor: HR_ADMIN },
-      { label: 'Shifts', path: '/shifts', icon: ScheduleRoundedIcon, visibleFor: HR_ADMIN },
-      { label: 'Holidays', path: '/holidays', icon: EventBusyRoundedIcon, visibleFor: HR_ADMIN },
+      { label: 'Employees', path: '/employees', icon: BadgeRoundedIcon, access: ACCESS.employees },
+      { label: 'Shifts', path: '/shifts', icon: ScheduleRoundedIcon, access: ACCESS.shifts },
+      { label: 'Holidays', path: '/holidays', icon: EventBusyRoundedIcon, access: ACCESS.holidays },
       {
         label: 'All Leaves',
         path: '/leave/all',
         icon: FactCheckRoundedIcon,
-        visibleFor: HR_ADMIN,
+        access: ACCESS.leaveAll,
       },
       {
         label: 'Attendance Console',
         path: '/attendance/generate',
         icon: EventAvailableRoundedIcon,
-        visibleFor: HR_ADMIN,
+        access: ACCESS.attendanceConsole,
       },
-      { label: 'Payroll', path: '/payroll/list', icon: PaymentsRoundedIcon, visibleFor: HR_ADMIN },
+      { label: 'Payroll', path: '/payroll/list', icon: PaymentsRoundedIcon, access: ACCESS.payroll },
       {
         label: 'Salary Slips',
         path: '/salary-slips',
         icon: ReceiptLongRoundedIcon,
-        visibleFor: HR_ADMIN,
+        access: ACCESS.salarySlips,
       },
-      { label: 'Masters', path: '/masters/companies', icon: ApartmentRoundedIcon, visibleFor: HR_ADMIN },
-      { label: 'Reports', path: '/reports', icon: AssessmentRoundedIcon, visibleFor: HR_ADMIN },
+      { label: 'Masters', path: '/masters/companies', icon: ApartmentRoundedIcon, access: ACCESS.masters },
+      { label: 'Reports', path: '/reports', icon: AssessmentRoundedIcon, access: ACCESS.reports },
     ],
   },
   {
     label: 'Contractors',
-    visibleFor: SUP_HR_ADMIN,
     items: [
       {
         label: 'Contractors',
         path: '/contractors/list',
         icon: EngineeringRoundedIcon,
-        visibleFor: SUP_HR_ADMIN,
+        access: ACCESS.contractors,
       },
       {
         label: 'Contractor Workforce',
         path: '/contractors/workforce',
         icon: GroupsRoundedIcon,
-        visibleFor: SUP_HR_ADMIN,
+        access: ACCESS.contractors,
       },
       {
         label: 'Contractor Roster',
         path: '/contractors/roster',
         icon: CalendarMonthRoundedIcon,
-        visibleFor: SUP_HR_ADMIN,
+        access: ACCESS.contractors,
       },
       {
         label: 'Contractor Attendance',
         path: '/contractors/attendance',
         icon: EventAvailableRoundedIcon,
-        visibleFor: SUP_HR_ADMIN,
+        access: ACCESS.contractors,
       },
       {
         label: 'Contractor Reports',
         path: '/contractors/reports',
         icon: AssessmentRoundedIcon,
-        visibleFor: SUP_HR_ADMIN,
+        access: ACCESS.contractors,
       },
     ],
   },
   {
     label: 'Security',
-    visibleFor: ADMIN_ONLY,
     items: [
       {
         label: 'Custom Roles',
         path: '/roles',
         icon: AdminPanelSettingsRoundedIcon,
-        visibleFor: ADMIN_ONLY,
+        access: ACCESS.roles,
       },
-      { label: 'Audit Log', path: '/audit-logs', icon: HistoryRoundedIcon, visibleFor: ADMIN_ONLY },
+      { label: 'Audit Log', path: '/audit-logs', icon: HistoryRoundedIcon, access: ACCESS.auditLog },
     ],
   },
 ];
@@ -153,11 +146,17 @@ export const platformNavConfig = [
   {
     label: 'Platform',
     items: [
-      { label: 'Companies', path: '/platform/companies', icon: ApartmentRoundedIcon },
-      { label: 'Onboard Company', path: '/platform/onboard', icon: DomainAddRoundedIcon },
-      { label: 'Audit Log', path: '/audit-logs', icon: HistoryRoundedIcon },
+      { label: 'Companies', path: '/platform/companies', icon: ApartmentRoundedIcon, access: ACCESS.platform },
+      { label: 'Onboard Company', path: '/platform/onboard', icon: DomainAddRoundedIcon, access: ACCESS.platform },
+      { label: 'Audit Log', path: '/audit-logs', icon: HistoryRoundedIcon, access: ACCESS.auditLog },
     ],
   },
 ];
+
+// The sections and items this session may open; a section left empty is dropped.
+export const visibleNav = (config, session) =>
+  config
+    .map((section) => ({ ...section, items: section.items.filter((item) => isAllowed(item.access, session)) }))
+    .filter((section) => section.items.length > 0);
 
 export default navConfig;

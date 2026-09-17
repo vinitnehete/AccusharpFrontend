@@ -1,9 +1,15 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authApi from '../api/auth';
 import employeesApi from '../api/employees';
-import { setAccessToken, refreshSession, registerAuthExpiredHandler } from '../api/client';
-import { hasPermission } from '../constants/permissions';
+import {
+  setAccessToken,
+  refreshSession,
+  registerAuthExpiredHandler,
+  registerSessionRefreshedHandler,
+} from '../api/client';
+import { resolvePermissions } from '../constants/permissions';
+import { isAllowed } from '../constants/access';
 
 const AuthContext = createContext(null);
 
@@ -18,15 +24,22 @@ export function AuthProvider({ children }) {
   const [principalType, setPrincipalType] = useState(null);
   const [username, setUsername] = useState(null);
   const [role, setRole] = useState(null);
+  // What the session may do - the fixed role's grants plus any custom roles, as
+  // the server sent them. The role alone cannot say this: a custom role adds
+  // permissions without changing it.
+  const [permissions, setPermissions] = useState([]);
+  const roleRef = useRef(null);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [me, setMe] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [initializing, setInitializing] = useState(true);
 
   const applySession = useCallback((session) => {
+    roleRef.current = session.role;
     setPrincipalType(session.principalType);
     setUsername(session.username);
     setRole(session.role);
+    setPermissions(resolvePermissions(session));
     setMustChangePassword(!!session.mustChangePassword);
   }, []);
 
@@ -57,7 +70,9 @@ export function AuthProvider({ children }) {
     setAccessToken(null);
     setPrincipalType(null);
     setUsername(null);
+    roleRef.current = null;
     setRole(null);
+    setPermissions([]);
     setMustChangePassword(false);
     setMe(null);
     setEmployees([]);
@@ -88,6 +103,19 @@ export function AuthProvider({ children }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // client.js calls this whenever a request silently refreshed the access token.
+  // Applying the fresh session is what makes a role or custom role changed
+  // server-side show up without a logout; a changed role also changes whose
+  // records this user sees, so the directory is reloaded with it.
+  useEffect(() => {
+    registerSessionRefreshedHandler((session) => {
+      const roleChanged = session.role !== roleRef.current;
+      applySession(session);
+      if (roleChanged) loadProfile(session.username, session.principalType);
+    });
+    return () => registerSessionRefreshedHandler(null);
+  }, [applySession, loadProfile]);
 
   // client.js calls this when a 401 survives a refresh attempt.
   useEffect(() => {
@@ -129,13 +157,16 @@ export function AuthProvider({ children }) {
   const isSupervisorOrAbove = isHrOrAdmin || isSupervisor;
   const isEmployee = role === 'EMPLOYEE';
 
-  const can = useCallback((code) => hasPermission(role, code), [role]);
+  const can = useCallback((code) => permissions.includes(code), [permissions]);
+  // Whether an ACCESS rule (constants/access.js) lets this session into an area.
+  const canAccess = useCallback((rule) => isAllowed(rule, { role, permissions }), [role, permissions]);
 
   const value = useMemo(
     () => ({
       principalType,
       username,
       role,
+      permissions,
       mustChangePassword,
       me,
       employees,
@@ -149,6 +180,7 @@ export function AuthProvider({ children }) {
       isSupervisorOrAbove,
       isEmployee,
       can,
+      canAccess,
       login,
       logout,
       reloadEmployees,
@@ -157,6 +189,7 @@ export function AuthProvider({ children }) {
       principalType,
       username,
       role,
+      permissions,
       mustChangePassword,
       me,
       employees,
@@ -170,6 +203,7 @@ export function AuthProvider({ children }) {
       isSupervisorOrAbove,
       isEmployee,
       can,
+      canAccess,
       login,
       logout,
       reloadEmployees,

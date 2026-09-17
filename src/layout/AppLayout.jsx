@@ -20,7 +20,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import LockResetRoundedIcon from '@mui/icons-material/LockResetRounded';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
 import { useAuth } from '../context/AuthContext';
-import navConfig, { platformNavConfig } from './navConfig';
+import navConfig, { platformNavConfig, visibleNav } from './navConfig';
 import { ROLE_COLOR } from '../constants/enums';
 import IdleSessionGuard from '../components/IdleSessionGuard';
 import { BRAND } from '../constants/brand';
@@ -42,11 +42,11 @@ const drawerPaperSx = {
   color: 'sidebar.text',
 };
 
-function SidebarContent({ isPlatform, role }) {
+function SidebarContent({ isPlatform, session }) {
   const location = useLocation();
-  const config = isPlatform ? platformNavConfig : navConfig;
-
-  const visible = (item) => !item.visibleFor || item.visibleFor.includes(role);
+  // Built from the permissions the server sent, so a custom role's pages are
+  // offered and nothing is offered that its route guard would turn away.
+  const sections = visibleNav(isPlatform ? platformNavConfig : navConfig, session);
 
   return (
     <Box sx={{ bgcolor: 'sidebar.background', minHeight: '100%', color: 'sidebar.text', pb: 2 }}>
@@ -67,10 +67,8 @@ function SidebarContent({ isPlatform, role }) {
           </Box>
         </Stack>
       </Box>
-      {config.map((section) => {
-        if (section.visibleFor && !section.visibleFor.includes(role)) return null;
-        const items = section.items.filter(visible);
-        if (items.length === 0) return null;
+      {sections.map((section) => {
+        const items = section.items;
         return (
           <Box key={section.label} sx={{ px: 1.5, mb: 1 }}>
             <Typography
@@ -183,7 +181,8 @@ function UserMenu() {
 
 export default function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { role, isPlatform } = useAuth();
+  const { role, permissions, isPlatform } = useAuth();
+  const session = { role, permissions };
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -225,7 +224,7 @@ export default function AppLayout() {
             '& .MuiDrawer-paper': drawerPaperSx,
           }}
         >
-          <SidebarContent isPlatform={isPlatform} role={role} />
+          <SidebarContent isPlatform={isPlatform} session={session} />
         </Drawer>
         <Drawer
           variant="permanent"
@@ -235,7 +234,7 @@ export default function AppLayout() {
           }}
           open
         >
-          <SidebarContent isPlatform={isPlatform} role={role} />
+          <SidebarContent isPlatform={isPlatform} session={session} />
         </Drawer>
       </Box>
 
