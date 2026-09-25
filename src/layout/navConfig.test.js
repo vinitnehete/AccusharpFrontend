@@ -23,6 +23,7 @@ describe('sidebar visibility', () => {
     expect(shown).not.toContain('Employees');
     expect(shown).not.toContain('Payroll');
     expect(shown).not.toContain('Attendance Console');
+    expect(shown).not.toContain('Rules');
     expect(shown).not.toContain('Custom Roles');
   });
 
@@ -31,7 +32,7 @@ describe('sidebar visibility', () => {
 
     expect(shown).toEqual(expect.arrayContaining([
       'Employees', 'Shifts', 'Holidays', 'All Leaves', 'Attendance Console', 'Payroll', 'Salary Slips',
-      'Masters', 'Reports',
+      'Masters', 'Rules', 'Reports',
     ]));
     expect(shown).not.toContain('Custom Roles');
     expect(shown).not.toContain('Audit Log');

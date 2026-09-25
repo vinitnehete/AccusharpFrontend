@@ -69,6 +69,8 @@ import PayrollList from './pages/Payroll/List';
 import PayrollEmployeeHistory from './pages/Payroll/EmployeeHistory';
 import SalarySlip from './pages/SalarySlips/SalarySlip';
 import MySalarySlip from './pages/SalarySlips/MySalarySlip';
+import RulesLayout from './pages/Rules/RulesLayout';
+import RulesOverview from './pages/Rules/RulesOverview';
 import ReportsHub from './pages/Reports/ReportsHub';
 import RolesList from './pages/Roles/RolesList';
 import RoleDetail from './pages/Roles/RoleDetail';
@@ -215,6 +217,40 @@ function App() {
               <Route path="salary-rule" element={<SalaryRule />} />
               <Route path="attendance-rule" element={<AttendanceRule />} />
               <Route path="work-policies" element={<WorkPolicies />} />
+            </Route>
+          </Route>
+
+          {/* Every rule in one place. Each tab is the same screen it has always
+              been elsewhere in the app, guarded by the same rule, so the old
+              locations keep working and nothing is configured twice. */}
+          <Route element={<RequireAccess rule={ACCESS.rules} />}>
+            <Route path="/rules" element={<RulesLayout />}>
+              <Route index element={<RulesOverview />} />
+              <Route element={<RequireAccess rule={ACCESS.salaryRule} />}>
+                <Route path="salary" element={<SalaryRule />} />
+              </Route>
+              <Route element={<RequireAccess rule={ACCESS.employmentTypes} />}>
+                <Route path="employment-types" element={<EmploymentTypes />} />
+              </Route>
+              <Route element={<RequireAccess rule={ACCESS.shifts} />}>
+                <Route path="shifts" element={<ShiftList />} />
+              </Route>
+              <Route element={<RequireAccess rule={ACCESS.holidays} />}>
+                <Route path="holidays" element={<Holidays />} />
+              </Route>
+              <Route element={<RequireAccess rule={ACCESS.attendanceRule} />}>
+                <Route path="attendance" element={<AttendanceRule />} />
+              </Route>
+              <Route element={<RequireAccess rule={ACCESS.attendancePolicy} />}>
+                <Route path="attendance-policy" element={<AttendancePolicyRules />} />
+                <Route path="check" element={<AttendancePolicyEffective />} />
+              </Route>
+              <Route element={<RequireAccess rule={ACCESS.workPolicies} />}>
+                <Route path="work-policies" element={<WorkPolicies />} />
+              </Route>
+              <Route element={<RequireAccess rule={ACCESS.leaveRules} />}>
+                <Route path="leave" element={<LeaveRules />} />
+              </Route>
             </Route>
           </Route>
 

@@ -25,6 +25,14 @@ describe('area access rules', () => {
     expect(isAllowed(ACCESS.auditLog, session('HR'))).toBe(false);
   });
 
+  it('opens the Rules page to HR and admin, and to a custom role holding any one rule', () => {
+    expect(isAllowed(ACCESS.rules, session('HR'))).toBe(true);
+    expect(isAllowed(ACCESS.rules, session('ADMIN'))).toBe(true);
+    expect(isAllowed(ACCESS.rules, session('SUPERVISOR'))).toBe(false);
+    expect(isAllowed(ACCESS.rules, session('EMPLOYEE'))).toBe(false);
+    expect(isAllowed(ACCESS.rules, session('EMPLOYEE', ['WORK_POLICY_READ']))).toBe(true);
+  });
+
   it('lets nobody in without a session', () => {
     expect(isAllowed(ACCESS.reports, { role: null, permissions: [] })).toBe(false);
   });

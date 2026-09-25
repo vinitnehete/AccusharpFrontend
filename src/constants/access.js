@@ -34,6 +34,18 @@ export const ACCESS = {
     'DEPARTMENT_MANAGE', 'DESIGNATION_MANAGE', 'CATEGORY_MANAGE',
     'EMPLOYMENT_TYPE_READ', 'SALARY_RULE_READ', 'ATTENDANCE_RULE_READ', 'WORK_POLICY_READ'
   ),
+  // One home for every rule the company runs on. Each tab on it has its own
+  // rule below, so the page opens on any one of them and shows only those.
+  salaryRule: anyOf('SALARY_RULE_READ'),
+  attendanceRule: anyOf('ATTENDANCE_RULE_READ'),
+  attendancePolicy: anyOf('ATTENDANCE_POLICY_READ', 'ATTENDANCE_POLICY_MANAGE'),
+  workPolicies: anyOf('WORK_POLICY_READ'),
+  employmentTypes: anyOf('EMPLOYMENT_TYPE_READ'),
+  rules: anyOf(
+    'SALARY_RULE_READ', 'EMPLOYMENT_TYPE_READ', 'SHIFT_MANAGE', 'HOLIDAY_MANAGE',
+    'ATTENDANCE_RULE_READ', 'ATTENDANCE_POLICY_READ', 'ATTENDANCE_POLICY_MANAGE',
+    'WORK_POLICY_READ', 'LEAVE_BALANCE_MANAGE'
+  ),
   // Reports are scoped server-side: HR/ADMIN see the company, a supervisor their team.
   reports: anyOf('REPORT_READ'),
   roles: anyOf('ROLE_READ', 'ROLE_MANAGE'),

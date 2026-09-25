@@ -19,6 +19,7 @@ import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import AdminPanelSettingsRoundedIcon from '@mui/icons-material/AdminPanelSettingsRounded';
 import DomainAddRoundedIcon from '@mui/icons-material/DomainAddRounded';
 import EngineeringRoundedIcon from '@mui/icons-material/EngineeringRounded';
+import RuleRoundedIcon from '@mui/icons-material/RuleRounded';
 import { ACCESS, isAllowed } from '../constants/access';
 
 // Each item names the ACCESS rule that opens it - the same rule its route is
@@ -88,6 +89,8 @@ const navConfig = [
         access: ACCESS.salarySlips,
       },
       { label: 'Masters', path: '/masters/companies', icon: ApartmentRoundedIcon, access: ACCESS.masters },
+      // Every salary, attendance, leave and work rule, on one page.
+      { label: 'Rules', path: '/rules', icon: RuleRoundedIcon, access: ACCESS.rules },
       { label: 'Reports', path: '/reports', icon: AssessmentRoundedIcon, access: ACCESS.reports },
     ],
   },
