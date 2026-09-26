@@ -40,6 +40,11 @@ const GROUPS = [
       { label: 'Overtime', path: '/reports/attendance/overtime', icon: EventAvailableRoundedIcon },
       { label: 'Loss of Pay', path: '/reports/attendance/lop', icon: EventAvailableRoundedIcon },
       {
+        label: 'Worked on Weekly Off',
+        path: '/reports/attendance/week-off-worked',
+        icon: EventAvailableRoundedIcon,
+      },
+      {
         label: 'Attendance Exceptions',
         path: '/reports/attendance/exceptions',
         icon: EventAvailableRoundedIcon,

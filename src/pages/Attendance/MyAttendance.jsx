@@ -17,6 +17,7 @@ import StatusChip from '../../components/StatusChip';
 import EmployeePicker from '../../components/EmployeePicker';
 import attendanceApi from '../../api/attendance';
 import { ATTENDANCE_STATUS_COLOR } from '../../constants/enums';
+import { ruleLabel } from '../../constants/attendancePolicy';
 import { useActingAs } from '../../context/ActingAsContext';
 import { formatHours } from '../../utils/hours';
 
@@ -52,6 +53,47 @@ const columns = [
     renderCell: (params) => <StatusChip value={params.value} colorMap={ATTENDANCE_STATUS_COLOR} />,
   },
 ];
+
+// The month-rule penalties and comp-off credits, in the sentence the engine
+// stored at the time it decided them. Rendered only when there is something to
+// say: a company that has configured no policy rules gets zeros and an empty
+// list, and must not be shown an empty card explaining a feature it does not use.
+function PolicyOutcomes({ data, dense = false }) {
+  const outcomes = data?.policyOutcomes || [];
+  const compOff = Number(data?.compOffCreditDays || 0);
+  if (!outcomes.length && compOff <= 0) return null;
+
+  return (
+    <Card sx={{ mb: 2.5 }} data-testid="attendance-policy-outcomes">
+      <CardContent>
+        <Typography variant="subtitle1" sx={{ mb: 1 }}>
+          Policy applied this month
+        </Typography>
+        {outcomes.map((o) => (
+          <Box key={o.id ?? `${o.ruleType}-${o.ruleId}`} sx={{ mb: 1.25 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              {ruleLabel(o.ruleType)} — {o.lopDays} unpaid day(s)
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {o.explanation}
+            </Typography>
+          </Box>
+        ))}
+        {compOff > 0 && (
+          <Typography variant="body2" sx={{ mt: outcomes.length ? 1.5 : 0 }}>
+            <strong>{compOff}</strong> compensatory-off day(s) earned for working a weekly off or
+            holiday.{' '}
+            <Typography component="span" variant="caption" color="text.secondary">
+              {dense
+                ? 'Speak to HR to take these.'
+                : 'Recorded here for HR — comp-off is not yet a bookable leave balance.'}
+            </Typography>
+          </Typography>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 // A single, larger-touch-target row for the consumer-style day list, used
 // only on the plain-employee view (see below) - a DataGrid forces horizontal
@@ -196,6 +238,8 @@ export default function MyAttendance() {
               </Alert>
             )}
 
+            <PolicyOutcomes data={data} dense />
+
             <Card>
               <CardContent sx={{ p: { xs: 0, sm: 1 } }}>
                 <Typography variant="subtitle1" sx={{ px: { xs: 2, sm: 1.5 }, pt: { xs: 2, sm: 1.5 }, pb: 1 }}>
@@ -258,6 +302,30 @@ export default function MyAttendance() {
             <Grid size={{ xs: 6, sm: 3 }}>
               <StatCard loading={loading} label="Overtime hours" value={formatHours(data?.overtimeHours)} accent="secondary.main" />
             </Grid>
+            {/* Only rendered once a policy rule has actually produced something.
+                policyLopDays is the share of LOP days somebody chose, as opposed
+                to the share the working-days arithmetic produced - the two answer
+                different questions and a slip audit needs them apart. */}
+            {Number(data?.policyLopDays || 0) > 0 && (
+              <Grid size={{ xs: 6, sm: 3 }}>
+                <StatCard
+                  loading={loading}
+                  label="of which, policy penalties"
+                  value={data?.policyLopDays}
+                  accent="error.main"
+                />
+              </Grid>
+            )}
+            {Number(data?.compOffCreditDays || 0) > 0 && (
+              <Grid size={{ xs: 6, sm: 3 }}>
+                <StatCard
+                  loading={loading}
+                  label="Comp-off earned"
+                  value={data?.compOffCreditDays}
+                  accent="info.main"
+                />
+              </Grid>
+            )}
           </Grid>
           {data?.invalidPunches > 0 && (
             <Alert severity="warning" sx={{ mb: 2 }} data-testid="attendance-needs-attention">
@@ -265,6 +333,8 @@ export default function MyAttendance() {
               Attendance Console before payroll is generated.
             </Alert>
           )}
+          <PolicyOutcomes data={data} />
+
           <Card>
             <CardContent>
               <Typography variant="subtitle1" sx={{ mb: 2 }}>

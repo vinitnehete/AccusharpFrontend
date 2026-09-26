@@ -62,6 +62,20 @@ function Field({ label, value }) {
   );
 }
 
+// Ordered Monday-first so a two-day weekend reads "Saturday, Sunday" rather
+// than in whatever order the API happened to serialise the set.
+const WEEK_ORDER = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+
+// Unset means Sunday only for an auto-rostered employee - that is what their
+// roster always said. For anyone else it means no weekly off at all.
+const weekOffLabel = (days, autoRostered) => {
+  if (!days) return autoRostered ? 'Not set (Sunday)' : 'Not set — no weekly off';
+  if (days.length === 0) return 'None — works every day';
+  return [...days].sort((a, b) => WEEK_ORDER.indexOf(a) - WEEK_ORDER.indexOf(b))
+    .map(labelize)
+    .join(', ');
+};
+
 export default function EmployeeDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -351,6 +365,20 @@ export default function EmployeeDetail() {
                   value={emp.supervisorName ? `${emp.supervisorName} (${emp.supervisorUserId})` : 'None'}
                 />
                 <Field label="Employment status" value={labelize(emp.status)} />
+                {/* Null for every employee who has not been put on a
+                    configurable type - which is the norm, and means payroll
+                    follows the employment status above. Spelling that out beats
+                    a blank field somebody has to interpret. */}
+                <Field
+                  label="Employment type (pay behaviour)"
+                  value={emp.employmentTypeName || 'From employment status'}
+                />
+                {/* Null means nobody has configured it, which the server
+                    resolves to Sunday - not "no weekly off". An employee who
+                    genuinely works every day has an empty list, and the two
+                    have to read differently here or somebody will "fix" the
+                    wrong one. */}
+                <Field label="Weekly off" value={weekOffLabel(emp.weekOffDays, emp.autoRostersDefaultShift)} />
                 <Field label="Gender" value={emp.gender ? labelize(emp.gender) : '-'} />
                 <Field
                   label="Joining date"

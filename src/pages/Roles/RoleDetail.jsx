@@ -14,29 +14,8 @@ import { useSnackbar } from 'notistack';
 import PageHeader from '../../components/PageHeader';
 import customRolesApi from '../../api/customRoles';
 import { labelize } from '../../constants/enums';
+import { PERMISSION_GROUPS } from '../../constants/permissions';
 import { useAuth } from '../../context/AuthContext';
-
-// Grouped for a scannable checklist; platform-only codes (COMPANY_CREATE/
-// UPDATE/DELETE, AUDIT_MANAGE) are omitted entirely - CustomRoleService
-// rejects them outright, so the UI never offers something the API refuses.
-const PERMISSION_GROUPS = [
-  { label: 'Company', codes: ['COMPANY_READ'] },
-  { label: 'Department', codes: ['DEPARTMENT_MANAGE', 'DEPARTMENT_READ'] },
-  { label: 'Designation', codes: ['DESIGNATION_MANAGE', 'DESIGNATION_READ'] },
-  { label: 'Employee', codes: ['EMPLOYEE_CREATE', 'EMPLOYEE_READ', 'EMPLOYEE_UPDATE', 'EMPLOYEE_DELETE'] },
-  { label: 'Shift', codes: ['SHIFT_MANAGE', 'SHIFT_READ'] },
-  { label: 'Shift schedule', codes: ['SHIFT_SCHEDULE_MANAGE', 'SHIFT_SCHEDULE_READ'] },
-  { label: 'Attendance', codes: ['ATTENDANCE_READ', 'ATTENDANCE_GENERATE', 'ATTENDANCE_CORRECT', 'ATTENDANCE_UNLOCK'] },
-  { label: 'Holiday', codes: ['HOLIDAY_MANAGE', 'HOLIDAY_READ'] },
-  { label: 'Leave', codes: ['LEAVE_APPLY', 'LEAVE_READ', 'LEAVE_SUPERVISOR_APPROVE', 'LEAVE_APPROVE'] },
-  { label: 'Leave balance', codes: ['LEAVE_BALANCE_READ', 'LEAVE_BALANCE_MANAGE'] },
-  { label: 'Salary rule', codes: ['SALARY_RULE_READ', 'SALARY_RULE_MANAGE'] },
-  { label: 'Payroll', codes: ['PAYROLL_PROCESS', 'PAYROLL_READ'] },
-  { label: 'Salary slip', codes: ['SALARY_SLIP_READ'] },
-  { label: 'Reports & dashboard', codes: ['REPORT_READ', 'DASHBOARD_READ'] },
-  { label: 'Custom roles', codes: ['ROLE_MANAGE', 'ROLE_READ'] },
-  { label: 'Audit log', codes: ['AUDIT_READ'] },
-];
 
 export default function RoleDetail() {
   const { id } = useParams();

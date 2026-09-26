@@ -128,6 +128,14 @@ export default function BulkImportEmployees() {
               with your own company otherwise.
             </Alert>
             <Alert severity="info">
+              <code>weekOffDays</code> is the days an employee does not work — one cell, day names
+              in any order and any case (<code>SATURDAY SUNDAY</code>, <code>sun</code>,{' '}
+              <code>Sat/Sun</code> all work). Leave it blank to leave the employee unconfigured —
+              permanent staff then fall back to Sunday, everyone else has no weekly off. Put <code>NONE</code> to say explicitly that this employee
+              has no weekly off. This is what attendance uses to decide which days are Weekly Off
+              rather than absent, so fill it in for day-wise staff in particular.
+            </Alert>
+            <Alert severity="info">
               The last four columns (<code>basicDA</code>, <code>hra</code>,{' '}
               <code>conveyanceAllowance</code>, <code>educationAllowance</code>) are optional, and only
               make sense filled in together. Leave all four blank on a row to keep deriving that

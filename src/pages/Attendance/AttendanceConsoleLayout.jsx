@@ -6,12 +6,19 @@ import Box from '@mui/material/Box';
 const TABS = [
   { label: 'Generate', path: '/attendance/generate' },
   { label: 'Records', path: '/attendance/records' },
+  { label: 'Policy', path: '/attendance/policy' },
+  { label: 'Who gets which rule', path: '/attendance/policy-check' },
 ];
 
 export default function AttendanceConsoleLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const current = TABS.find((t) => location.pathname.startsWith(t.path))?.path || TABS[0].path;
+  // Longest match wins: '/attendance/policy-check' also starts with
+  // '/attendance/policy', and a plain find() would light up the wrong tab.
+  const current =
+    [...TABS]
+      .sort((a, b) => b.path.length - a.path.length)
+      .find((t) => location.pathname.startsWith(t.path))?.path || TABS[0].path;
 
   return (
     <Box>

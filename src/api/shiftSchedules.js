@@ -14,9 +14,12 @@ const shiftSchedules = {
     client
       .get(`/shift-schedules/${userId}`, { params: { fromDate, toDate } })
       .then((r) => r.data),
-  planner: (month, supervisorUserId) =>
+  // contractorId switches the population to that contractor's deployed
+  // workforce instead of the company's own staff. The two are never merged
+  // into one grid - the shift catalog is shared, the roster screens are not.
+  planner: (month, supervisorUserId, contractorId) =>
     client
-      .get('/shift-schedules/planner', { params: { month, supervisorUserId } })
+      .get('/shift-schedules/planner', { params: { month, supervisorUserId, contractorId } })
       .then((r) => r.data),
   deleteRange: (userId, fromDate, toDate) =>
     client

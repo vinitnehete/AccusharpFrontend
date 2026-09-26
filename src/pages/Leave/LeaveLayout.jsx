@@ -2,20 +2,24 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
-import { useActingAs } from '../../context/ActingAsContext';
+import { useAuth } from '../../context/AuthContext';
+import { ACCESS } from '../../constants/access';
 
 export default function LeaveLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isSupervisorOrAbove, isHrOrAdmin } = useActingAs();
+  const { canAccess } = useAuth();
 
+  // Same ACCESS rules the routes are guarded by, so a tab is only ever offered
+  // when the page behind it will open.
   const tabs = [
     { label: 'Apply', path: '/leave/apply' },
     { label: 'My Leaves', path: '/leave/my' },
-    ...(isSupervisorOrAbove ? [{ label: 'Pending Approvals', path: '/leave/approvals' }] : []),
-    ...(isHrOrAdmin ? [{ label: 'All Leaves', path: '/leave/all' }] : []),
+    ...(canAccess(ACCESS.leaveApprovals) ? [{ label: 'Pending Approvals', path: '/leave/approvals' }] : []),
+    ...(canAccess(ACCESS.leaveAll) ? [{ label: 'All Leaves', path: '/leave/all' }] : []),
     { label: 'Calendar', path: '/leave/calendar' },
     { label: 'Balances', path: '/leave/balances' },
+    ...(canAccess(ACCESS.leaveRules) ? [{ label: 'Rules', path: '/leave/rules' }] : []),
   ];
 
   const current = tabs.find((t) => location.pathname.startsWith(t.path))?.path || tabs[0].path;

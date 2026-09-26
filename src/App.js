@@ -3,9 +3,14 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import LinearProgress from '@mui/material/LinearProgress';
 import AppLayout from './layout/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
-import RequireRole from './components/RequireRole';
-import { HR_ADMIN, SUP_HR_ADMIN, ADMIN_ONLY, PLATFORM_ONLY } from './layout/navConfig';
+import RequireAccess from './components/RequireAccess';
+import { ACCESS } from './constants/access';
 import { useAuth } from './context/AuthContext';
+import SiteLayout from './layout/SiteLayout';
+import SiteHome from './pages/Site/Home';
+import SiteServices from './pages/Site/Services';
+import SiteAbout from './pages/Site/About';
+import SiteContact from './pages/Site/Contact';
 import Login from './pages/Auth/Login';
 import ChangePassword from './pages/Auth/ChangePassword';
 import Dashboard from './pages/Dashboard/Dashboard';
@@ -15,8 +20,10 @@ import Companies from './pages/Masters/Companies';
 import Departments from './pages/Masters/Departments';
 import Designations from './pages/Masters/Designations';
 import Categories from './pages/Masters/Categories';
+import EmploymentTypes from './pages/Masters/EmploymentTypes';
 import SalaryRule from './pages/Masters/SalaryRule';
 import AttendanceRule from './pages/Masters/AttendanceRule';
+import WorkPolicies from './pages/Masters/WorkPolicies';
 import EmployeeList from './pages/Employees/EmployeeList';
 import EmployeeForm from './pages/Employees/EmployeeForm';
 import EmployeeDetail from './pages/Employees/EmployeeDetail';
@@ -24,6 +31,12 @@ import MyTeam from './pages/Employees/MyTeam';
 import BulkImportEmployees from './pages/Employees/BulkImportEmployees';
 import BulkSalaryRevision from './pages/Employees/BulkSalaryRevision';
 import BulkSalaryStructure from './pages/Employees/BulkSalaryStructure';
+import ContractorsLayout from './pages/Contractors/ContractorsLayout';
+import ContractorList from './pages/Contractors/ContractorList';
+import ContractorWorkforce from './pages/Contractors/ContractorWorkforce';
+import ContractorRoster from './pages/Contractors/ContractorRoster';
+import ContractorAttendance from './pages/Contractors/ContractorAttendance';
+import ContractorReports from './pages/Contractors/ContractorReports';
 import ShiftList from './pages/Shifts/ShiftList';
 import RosterLayout from './pages/Roster/RosterLayout';
 import Planner from './pages/Roster/Planner';
@@ -37,6 +50,8 @@ import MyAttendance from './pages/Attendance/MyAttendance';
 import AttendanceConsoleLayout from './pages/Attendance/AttendanceConsoleLayout';
 import AttendanceGenerate from './pages/Attendance/Generate';
 import AttendanceRecords from './pages/Attendance/Records';
+import AttendancePolicyRules from './pages/Attendance/PolicyRules';
+import AttendancePolicyEffective from './pages/Attendance/PolicyEffective';
 import LeaveLayout from './pages/Leave/LeaveLayout';
 import LeaveApply from './pages/Leave/Apply';
 import MyLeaves from './pages/Leave/MyLeaves';
@@ -45,6 +60,7 @@ import AllLeaves from './pages/Leave/AllLeaves';
 import BulkImportLeaves from './pages/Leave/BulkImportLeaves';
 import LeaveCalendar from './pages/Leave/Calendar';
 import LeaveBalances from './pages/Leave/Balances';
+import LeaveRules from './pages/Leave/LeaveRules';
 import PayrollLayout from './pages/Payroll/PayrollLayout';
 import PayrollGenerate from './pages/Payroll/Generate';
 import PayrollGenerateAll from './pages/Payroll/GenerateAll';
@@ -53,6 +69,8 @@ import PayrollList from './pages/Payroll/List';
 import PayrollEmployeeHistory from './pages/Payroll/EmployeeHistory';
 import SalarySlip from './pages/SalarySlips/SalarySlip';
 import MySalarySlip from './pages/SalarySlips/MySalarySlip';
+import RulesLayout from './pages/Rules/RulesLayout';
+import RulesOverview from './pages/Rules/RulesOverview';
 import ReportsHub from './pages/Reports/ReportsHub';
 import RolesList from './pages/Roles/RolesList';
 import RoleDetail from './pages/Roles/RoleDetail';
@@ -65,6 +83,7 @@ import OnboardCompany from './pages/Platform/OnboardCompany';
 const EmployeesReport = lazy(() => import('./pages/Reports/EmployeesReport'));
 const AttendanceMonthlyReport = lazy(() => import('./pages/Reports/AttendanceMonthlyReport'));
 const LateComingReport = lazy(() => import('./pages/Reports/LateComingReport'));
+const WeekOffWorkedReport = lazy(() => import('./pages/Reports/WeekOffWorkedReport'));
 const AbsentReport = lazy(() => import('./pages/Reports/AbsentReport'));
 const OvertimeReport = lazy(() => import('./pages/Reports/OvertimeReport'));
 const LopReport = lazy(() => import('./pages/Reports/LopReport'));
@@ -100,15 +119,29 @@ function withSuspense(element) {
 }
 
 function RootRedirect() {
-  const { isPlatform, isEmployee } = useAuth();
+  const { isPlatform, can } = useAuth();
   if (isPlatform) return <Navigate to="/platform/companies" replace />;
-  if (isEmployee) return <Navigate to="/attendance/me" replace />;
+  // Without DASHBOARD_READ the dashboard's own data calls would 403 - land on
+  // the one page every employee has. Asked as a permission, so a custom role
+  // granting it lands that employee on the dashboard instead.
+  if (!can('DASHBOARD_READ')) return <Navigate to="/attendance/me" replace />;
   return <Dashboard />;
 }
 
 function App() {
   return (
     <Routes>
+      {/* Public marketing site. No auth, no API calls, no shared state with
+          the application - it only renders copy from src/content/siteContent.js.
+          It sits in front of the sign-in form so a visitor (or a demo) lands on
+          the company site first and signs in from there. */}
+      <Route element={<SiteLayout />}>
+        <Route path="/home" element={<SiteHome />} />
+        <Route path="/services" element={<SiteServices />} />
+        <Route path="/about" element={<SiteAbout />} />
+        <Route path="/contact" element={<SiteContact />} />
+      </Route>
+
       <Route path="/login" element={<Login />} />
 
       <Route element={<ProtectedRoute />}>
@@ -127,17 +160,42 @@ function App() {
             <Route path="calendar" element={<LeaveCalendar />} />
             <Route path="balances" element={<LeaveBalances />} />
 
-            {/* Approving someone else's leave is a supervisor-and-up action. */}
-            <Route element={<RequireRole allow={SUP_HR_ADMIN} />}>
+            {/* Approving someone else's leave needs an approval permission -
+                a supervisor's endorsement or HR's final say, either of which a
+                custom role can grant. */}
+            <Route element={<RequireAccess rule={ACCESS.leaveApprovals} />}>
               <Route path="approvals" element={<PendingApprovals />} />
             </Route>
-            <Route element={<RequireRole allow={HR_ADMIN} />}>
+            <Route element={<RequireAccess rule={ACCESS.leaveAll} />}>
               <Route path="all" element={<AllLeaves />} />
+            </Route>
+            <Route element={<RequireAccess rule={ACCESS.leaveRules} />}>
+              <Route path="rules" element={<LeaveRules />} />
             </Route>
           </Route>
 
-          <Route element={<RequireRole allow={SUP_HR_ADMIN} />}>
+          {/* Seeing a team stays with the fixed role - a custom role adds
+              permissions, it does not give anyone reports. */}
+          <Route element={<RequireAccess rule={ACCESS.team} />}>
             <Route path="/team" element={<MyTeam />} />
+          </Route>
+
+          {/* A SUPERVISOR holds CONTRACTOR_READ and SHIFT_SCHEDULE_MANAGE, so
+              they can see the workforce they supervise and roster it. The
+              manage-only actions inside each page are gated on
+              can('CONTRACTOR_MANAGE') individually. */}
+          <Route element={<RequireAccess rule={ACCESS.contractors} />}>
+            <Route path="/contractors" element={<ContractorsLayout />}>
+              <Route index element={<ContractorList />} />
+              <Route path="list" element={<ContractorList />} />
+              <Route path="workforce" element={<ContractorWorkforce />} />
+              <Route path="roster" element={<ContractorRoster />} />
+              <Route path="attendance" element={<ContractorAttendance />} />
+              <Route path="reports" element={<ContractorReports />} />
+            </Route>
+          </Route>
+
+          <Route element={<RequireAccess rule={ACCESS.roster} />}>
             <Route path="/roster" element={<RosterLayout />}>
               <Route index element={<Planner />} />
               <Route path="planner" element={<Planner />} />
@@ -149,16 +207,54 @@ function App() {
             </Route>
           </Route>
 
-          <Route element={<RequireRole allow={HR_ADMIN} />}>
+          <Route element={<RequireAccess rule={ACCESS.masters} />}>
             <Route path="/masters" element={<MastersLayout />}>
               <Route path="companies" element={<Companies />} />
               <Route path="departments" element={<Departments />} />
               <Route path="designations" element={<Designations />} />
               <Route path="categories" element={<Categories />} />
+              <Route path="employment-types" element={<EmploymentTypes />} />
               <Route path="salary-rule" element={<SalaryRule />} />
               <Route path="attendance-rule" element={<AttendanceRule />} />
+              <Route path="work-policies" element={<WorkPolicies />} />
             </Route>
+          </Route>
 
+          {/* Every rule in one place. Each tab is the same screen it has always
+              been elsewhere in the app, guarded by the same rule, so the old
+              locations keep working and nothing is configured twice. */}
+          <Route element={<RequireAccess rule={ACCESS.rules} />}>
+            <Route path="/rules" element={<RulesLayout />}>
+              <Route index element={<RulesOverview />} />
+              <Route element={<RequireAccess rule={ACCESS.salaryRule} />}>
+                <Route path="salary" element={<SalaryRule />} />
+              </Route>
+              <Route element={<RequireAccess rule={ACCESS.employmentTypes} />}>
+                <Route path="employment-types" element={<EmploymentTypes />} />
+              </Route>
+              <Route element={<RequireAccess rule={ACCESS.shifts} />}>
+                <Route path="shifts" element={<ShiftList />} />
+              </Route>
+              <Route element={<RequireAccess rule={ACCESS.holidays} />}>
+                <Route path="holidays" element={<Holidays />} />
+              </Route>
+              <Route element={<RequireAccess rule={ACCESS.attendanceRule} />}>
+                <Route path="attendance" element={<AttendanceRule />} />
+              </Route>
+              <Route element={<RequireAccess rule={ACCESS.attendancePolicy} />}>
+                <Route path="attendance-policy" element={<AttendancePolicyRules />} />
+                <Route path="check" element={<AttendancePolicyEffective />} />
+              </Route>
+              <Route element={<RequireAccess rule={ACCESS.workPolicies} />}>
+                <Route path="work-policies" element={<WorkPolicies />} />
+              </Route>
+              <Route element={<RequireAccess rule={ACCESS.leaveRules} />}>
+                <Route path="leave" element={<LeaveRules />} />
+              </Route>
+            </Route>
+          </Route>
+
+          <Route element={<RequireAccess rule={ACCESS.employees} />}>
             <Route path="/employees" element={<EmployeeList />} />
             <Route path="/employees/new" element={<EmployeeForm />} />
             <Route path="/employees/bulk-import" element={<BulkImportEmployees />} />
@@ -166,18 +262,31 @@ function App() {
             <Route path="/employees/bulk-salary-structure" element={<BulkSalaryStructure />} />
             <Route path="/employees/:id/edit" element={<EmployeeForm />} />
             <Route path="/employees/:id" element={<EmployeeDetail />} />
+          </Route>
 
+          <Route element={<RequireAccess rule={ACCESS.shifts} />}>
             <Route path="/shifts" element={<ShiftList />} />
-            <Route path="/holidays" element={<Holidays />} />
+          </Route>
 
+          <Route element={<RequireAccess rule={ACCESS.holidays} />}>
+            <Route path="/holidays" element={<Holidays />} />
+          </Route>
+
+          <Route element={<RequireAccess rule={ACCESS.attendanceConsole} />}>
             <Route path="/attendance" element={<AttendanceConsoleLayout />}>
               <Route index element={<AttendanceGenerate />} />
               <Route path="generate" element={<AttendanceGenerate />} />
               <Route path="records" element={<AttendanceRecords />} />
+              <Route path="policy" element={<AttendancePolicyRules />} />
+              <Route path="policy-check" element={<AttendancePolicyEffective />} />
             </Route>
+          </Route>
 
+          <Route element={<RequireAccess rule={ACCESS.leaveBulkImport} />}>
             <Route path="/leave/bulk-import" element={<BulkImportLeaves />} />
+          </Route>
 
+          <Route element={<RequireAccess rule={ACCESS.payroll} />}>
             <Route path="/payroll" element={<PayrollLayout />}>
               <Route index element={<PayrollGenerate />} />
               <Route path="generate" element={<PayrollGenerate />} />
@@ -186,9 +295,15 @@ function App() {
               <Route path="list" element={<PayrollList />} />
               <Route path="history" element={<PayrollEmployeeHistory />} />
             </Route>
+          </Route>
 
+          <Route element={<RequireAccess rule={ACCESS.salarySlips} />}>
             <Route path="/salary-slips" element={<SalarySlip />} />
+          </Route>
 
+          {/* Reports are scoped server-side - HR and ADMIN see the company, a
+              supervisor their own team - so REPORT_READ is the whole rule. */}
+          <Route element={<RequireAccess rule={ACCESS.reports} />}>
             <Route path="/reports" element={<ReportsHub />} />
             <Route path="/reports/employees" element={withSuspense(<EmployeesReport />)} />
             <Route
@@ -202,6 +317,10 @@ function App() {
             <Route path="/reports/attendance/absent" element={withSuspense(<AbsentReport />)} />
             <Route path="/reports/attendance/overtime" element={withSuspense(<OvertimeReport />)} />
             <Route path="/reports/attendance/lop" element={withSuspense(<LopReport />)} />
+            <Route
+              path="/reports/attendance/week-off-worked"
+              element={withSuspense(<WeekOffWorkedReport />)}
+            />
             <Route path="/reports/leave-balances" element={withSuspense(<LeaveBalancesReport />)} />
             <Route path="/reports/payroll" element={withSuspense(<PayrollReport />)} />
             <Route
@@ -266,13 +385,17 @@ function App() {
             />
           </Route>
 
-          <Route element={<RequireRole allow={ADMIN_ONLY} />}>
+          <Route element={<RequireAccess rule={ACCESS.roles} />}>
             <Route path="/roles" element={<RolesList />} />
             <Route path="/roles/:id" element={<RoleDetail />} />
+          </Route>
+
+          {/* A platform principal holds AUDIT_READ too - its own nav links here. */}
+          <Route element={<RequireAccess rule={ACCESS.auditLog} />}>
             <Route path="/audit-logs" element={<AuditLog />} />
           </Route>
 
-          <Route element={<RequireRole allow={PLATFORM_ONLY} />}>
+          <Route element={<RequireAccess rule={ACCESS.platform} />}>
             <Route path="/platform/companies" element={<Companies />} />
             <Route path="/platform/onboard" element={<OnboardCompany />} />
           </Route>

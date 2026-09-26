@@ -271,6 +271,7 @@ a successful change — there is no "stay logged in" option, by design.
 | Payroll | `/payroll/generate`, `/generate-all`, `/list`, `/history` |
 | Salary Slips | `/salary-slips`, `/salary-slips/me` |
 | Reports | `/reports` (hub) + 13 sub-routes under `/reports/*` |
+| Contractors | `/contractors/list`, `/workforce`, `/roster`, `/attendance`, `/reports` — see §17 |
 | Custom Roles | `/roles` (ADMIN-only), `/roles/:id` |
 | Audit Log | `/audit-logs` (company ADMIN + platform) |
 | Platform | `/platform/companies` (full Companies CRUD), `/platform/onboard` |
@@ -995,3 +996,909 @@ MyAttendance changes with no console errors (checked via the already-running
 logging into the running app to click through the totals line and dated
 in/out columns for real - same credential constraint as every other section
 here; the user confirmed the hours-formatting change directly instead.
+
+---
+
+## 16. Attendance policy engine + configurable employment types, in the UI (2026-09-01)
+
+Two backend features landed that had no frontend at all. Both are additive and
+both ship **off**: a company that configures nothing sees exactly the app it saw
+before, and is paid exactly what it was paid before. That property is the whole
+design of both features, and the UI is built to preserve it — every new
+indicator on an existing screen is hidden until it has a number to show.
+
+Source of truth read before writing any of this, in this order:
+`Accusharp/docs/design/attendance-policy-engine.md` (the engine, 1083 lines),
+`Accusharp/docs/design/dynamic-configuration.md` (why employment types became a
+table), `Accusharp/Attendance.md` §11 (the operator-facing version), and then the
+controllers, DTOs and services themselves — the design docs describe an
+approved design, and §15 of the first one records where the build deviated from
+it. Where the two disagreed, the **code** won.
+
+### 16a. What the backend actually added
+
+**The attendance policy engine.** Attendance policy used to be one setting for
+everybody: the shift's grace, and two company-wide thresholds on
+`attendance_rule`. Late minutes were recorded and then read by nothing at all —
+no status, no day fraction, no LOP day, no rupee depended on them. That hole is
+what this fills. Policy is now a stack of typed rules resolved per employee per
+date, over seven rule types:
+
+| Rule | Scope | Decides |
+|---|---|---|
+| `MISSING_PUNCH` | day | A lone punch that looks like an arrival becomes a half day instead of `INVALID_PUNCH` |
+| `SHORT_HOURS` | day | The full/half-day cut-offs, as a share of the shift **or absolute minutes**, per group |
+| `LATE_ARRIVAL` | day | Grace, and what a late arrival costs |
+| `DAY_OFF_WORK` | day | Whether a worked weekly off earns overtime or a comp-off credit |
+| `OVERTIME` | day | Who earns overtime, after how long, in what blocks |
+| `EARLY_EXIT_BUDGET` | **month** | A monthly budget of early-exit minutes, then a penalty per occurrence |
+| `LATE_MARK_ACCUMULATION` | **month** | Nth late mark in a month costs a fraction of a day |
+
+Three properties of the API shape the UI more than anything else:
+
+1. **There is no `PUT`.** A rule is never edited. Changing one appends a version
+   with a later `effectiveFrom`; ending one appends a version with
+   `enabled = false`. `DELETE` only accepts a version that has not started yet.
+   So the screen has no Edit button — it has "Change (saves a new version)" and
+   "Stop", and it can show the whole history.
+2. **`enabled = false` is an answer, not a gap.** Resolution still picks the
+   disabled row, and a broader rule does **not** take over. "Managers are not
+   tracked for lateness" is a disabled `LATE_ARRIVAL` at `CATEGORY=MANAGER`.
+   The UI says this in as many words in three places, because the intuitive
+   reading is the opposite.
+3. **`POST /preview` re-runs a real past month and writes nothing.** This is the
+   only defence against the misconfiguration the design document calls the most
+   damaging one available (see 16d), so it is not a separate page somebody might
+   never find — it is step 5 of the save flow.
+
+New permissions `ATTENDANCE_POLICY_READ` / `ATTENDANCE_POLICY_MANAGE`, granted
+to HR and ADMIN only (deliberately not SUPERVISOR — deviation #2 in the design
+doc's §15).
+
+**Configurable employment types.** `EmployeeStatus.isPaidPerAttendedDay()` — one
+enum constant — drove seven separate branches in `PayrollService.build`: the
+proration base, whether LOP applies, how payable days derive, whether paid leave
+adds to them, the stored `presentDays`, the overtime basis, and whether a
+mid-month revision is segmented. A company could change the *numbers* those
+branches used but never the *behaviour*, and could not add a fifth type at all.
+`employment_type` makes each of those a field on an editable row. `PayBasis` and
+`OvertimeBasis` stay closed enums of two — unlimited types composed from a
+bounded vocabulary, which is the line `dynamic-configuration.md` §2 draws and
+explains.
+
+`Employee.employmentType` is **nullable**, and null falls back to the legacy
+`EmployeeStatus` semantics. Adoption is opt-in per employee. New permissions
+`EMPLOYMENT_TYPE_READ` / `EMPLOYMENT_TYPE_MANAGE`.
+
+**Monthly summary gained two columns**, surfaced on
+`GET /api/attendance/{userId}/monthly` only:
+`policyLopDays` (the share of `lopDays` somebody *chose*, as against the share
+the working-days arithmetic produced) and `compOffCreditDays`, plus a
+`policyOutcomes` array carrying one stored explanation sentence per month-rule
+penalty.
+
+### 16b. What was built, file by file
+
+**New API modules**
+
+- `api/employmentTypes.js` — the standard CRUD factory plus `seedDefaults()`.
+- `api/attendancePolicy.js` — `list`, `create`, `remove`, `effective`,
+  `preview`. No `update`, matching the backend, with the reason in a comment so
+  nobody adds one later.
+
+**New constants**
+
+- `constants/attendancePolicy.js` — the human half of the rule catalog. Every
+  numeric bound in it matches a bean-validation annotation in
+  `AttendancePolicyParams`, so a form built from it cannot compose a rule the
+  server rejects on a technicality. What it adds is what the enum cannot carry:
+  a one-line summary, a paragraph of detail, a "what it changes" line, the
+  danger text for the one rule that warrants one, sensible defaults, and a
+  `describe()` per type that renders stored params as one plain sentence.
+  The scope list deliberately **omits `GLOBAL`** — it exists on the backend as a
+  hook for a future shared catalog that ships empty, and a company creating one
+  would only get a confusingly-named lowest-priority company rule.
+- `constants/enums.js` — `PAY_BASIS` / `OVERTIME_BASIS` and, more usefully,
+  `*_LABEL` and `*_HELP` maps. `labelize('PER_CALENDAR_DAY_LESS_LOP')` gives
+  "Per calendar day less lop", which is accurate and says nothing to the payroll
+  clerk who has to choose between the two options.
+- `constants/permissions.js` — the four new codes added to the HR/ADMIN grant
+  list and to `PERMISSION_CODES` (which drives the custom-role checklist), in
+  the same positions the backend's `PermissionCode` enum puts them.
+
+**New pages**
+
+- `pages/Masters/EmploymentTypes.jsx` — a sixth Masters tab at
+  `/masters/employment-types`. Not `MasterCrudPage`: this master has switches,
+  two selects whose choices change what the other fields mean, and a
+  cross-field rule the backend refuses outright, none of which
+  `MasterFormDialog` models. Table shows code, name, pay basis and overtime
+  basis as plain English with the technical explanation on hover, the monthly
+  base (or "Company default"), the behaviour flags as chips, and active state.
+- `pages/Attendance/PolicyRules.jsx` — a third Attendance Console tab at
+  `/attendance/policy`. Lists rules grouped into chains, showing only the
+  current version of each by default with a "Show past versions" switch.
+- `pages/Attendance/PolicyRuleDialog.jsx` — the add/change flow, five numbered
+  steps (16d).
+- `pages/Attendance/PolicyEffective.jsx` — a fourth tab at
+  `/attendance/policy-check`, "Who gets which rule". Pick a person and a date;
+  get the winning rule per type, the sentence saying *why* it won, and — the
+  point of the endpoint — the rules that matched and lost, collapsed. Without
+  those, "why isn't my department's rule applying?" has no answer anywhere.
+
+**Changed pages**
+
+- `pages/Attendance/MyAttendance.jsx` — a `PolicyOutcomes` card rendering the
+  stored explanation sentence for each month-rule penalty plus any comp-off
+  earned, on both the HR table view and the plain-employee card view; and two
+  extra stat cards ("of which, policy penalties", "Comp-off earned") on the HR
+  view. **All three render only when they have a non-zero figure**, so a company
+  with no policy rules sees precisely the screen it saw yesterday.
+- `pages/Employees/EmployeeForm.jsx` — an "Employment type (pay behaviour)"
+  select in the Organisation card, next to Employment status. The whole field is
+  hidden when the company has defined no types, so nobody is asked about a
+  concept they have not adopted. Blank means "use the employment status", spelt
+  out in the helper text rather than left as an empty option.
+- `pages/Employees/EmployeeDetail.jsx` — the same field, read-only, rendering
+  "From employment status" rather than a blank when unset.
+- `pages/Attendance/AttendanceConsoleLayout.jsx` / `pages/Masters/MastersLayout.jsx`
+  / `App.js` — the new tabs and routes.
+
+### 16c. One backend change was necessary, and it fixes a live data-loss bug
+
+`EmployeeResponse` did not expose the employment type, but `EmployeeRequest`
+carries `employmentTypeId` and `EmployeeService.apply` applies it
+unconditionally:
+
+```java
+employee.setEmploymentType(request.getEmploymentTypeId() == null ? null
+        : employmentTypeService.getById(request.getEmploymentTypeId()));
+```
+
+A client that cannot read the current value back has no way to send it again.
+So **every ordinary employee edit — changing a phone number, fixing a bank
+account — silently clears the employment type**, and with it the pay behaviour.
+This is true of the app as it stands today, before any of this work: it is
+invisible only because there was no UI to set the field in the first place.
+
+Adding a write-only picker to the form would have shipped a feature that
+destroys its own data on the next save, so two lines went into the backend:
+
+- `dto/EmployeeResponse.java` — `Long employmentTypeId`, `String employmentTypeName`.
+- `mapper/EmployeeMapper.java` — the two null-safe reads, next to the `category`
+  read that already proves the mapper runs inside a transaction (both
+  associations are `FetchType.LAZY`).
+
+Purely additive: no existing field moved, no existing consumer changed, and
+`EmployeeResponse` has exactly one construction site. `./mvnw compile` clean.
+
+### 16d. The design decisions that were about the audience, not the API
+
+The people using this screen configure payroll; they do not read Javadoc. Four
+choices follow from that, and each one is a deliberate departure from simply
+rendering the API.
+
+**The month test is step 5 of saving, not a separate page.** The design document
+is blunt about the worst thing this engine can do: a `LATE_ARRIVAL` rule with
+`penaltyStatus: ABSENT` and a small grace, scoped at `COMPANY`, turns everybody
+who arrives at 09:06 into a full unpaid day — on a day they worked in full. It
+is worse than the old `overtime_window_minutes = 0` bug for one specific reason:
+that one produced `INVALID_PUNCH`, which is visibly wrong and shows up in the
+summary, while this produces `ABSENT`, which is exactly what a genuinely absent
+day looks like. Nothing in the month's figures says anything went wrong.
+
+So `POST /preview` is inlined into the dialog, defaulting to **last** month
+(this month is usually half-generated), and it reports employees checked,
+employees affected, the LOP delta, the overtime delta, the server's own
+warnings, and the first eight affected employees with their changed days and
+reasons. Selecting `ABSENT` as the penalty also raises a written warning in the
+form itself, before the test is even run.
+
+One detail worth keeping: the preview endpoint **replaces** the stored rule set
+rather than merging with it, so sending only the draft would answer a question
+nobody asked. `PolicyRules` therefore fetches its list **unfiltered** — the
+rule-type filter is applied client-side to the table only — and the dialog
+previews *every rule currently in force, with the draft added or replacing its
+own predecessor*. That is the month as it would actually be after saving.
+
+**Append-only history is shown as append-only, not disguised as editing.** The
+Edit icon is captioned "Change — saves a new version, keeps the old one", the
+dialog opens with "This adds version N+1 — it does not edit version N", and
+Stop's confirmation says days already worked out keep their result and no wider
+rule will take over. Hiding the versioning behind a familiar-looking Edit button
+would have been friendlier and would have made the first "why did last month
+change?" conversation impossible to have.
+
+**Every rule type is explained where it is chosen.** Selecting a rule renders
+its summary, its detail paragraph, an explicit "What it changes" line, and a
+chip saying whether it is worked out day by day or once a month — with the
+month-scope consequence stated outright: a start date mid-month means it governs
+from the **following** month. That is deviation #1 in the design doc's §15,
+it has no visible signal anywhere else, and somebody will otherwise set a rule
+on the 15th and spend two weeks wondering why nothing happened.
+
+**Illegal combinations are made unreachable rather than rejected.** On the
+employment type form, choosing "Paid per day attended" switches LOP off and
+disables it, with the reason in place of the help text ("the days not worked are
+already unpaid, so deducting again would charge the same absence twice");
+choosing the monthly basis clears and disables the monthly base. Both mirror
+`EmploymentTypeService.validate()` exactly, so the guard is a disabled control
+with an explanation rather than a 400 after the fact.
+
+### 16e. Client-side validation the backend does not have
+
+`SHORT_HOURS` is bean-validated field by field but the two values are never
+compared, and `halfDayValue >= fullDayValue` makes the half-day branch
+unreachable — short days silently become `ABSENT`. The design document listed
+`halfDayValue must be less than fullDayValue` as a refusal; the implementation
+does not have it. The form blocks it with that message. `DAY_OFF_WORK`'s
+`halfCreditMinutes > fullCreditMinutes` is the same shape and is blocked the
+same way. **Both are worth adding to `AttendancePolicyParamsCodec.validate`** —
+the UI guard only covers callers that come through this app.
+
+### 16f. Known gaps, in the order they are likely to matter
+
+1. **Bulk employee import cannot set an employment type.** `EmployeeCsvParser`
+   has no such column, so the xlsx template in `utils/employeeTemplate.js` has
+   none either. Onboarding a company onto configurable types today means editing
+   employees one at a time. Backend work.
+2. **Per-day policy trace is not surfaced anywhere.** `attendance_policy_application`
+   holds one row per day per rule that changed something, with the rendered
+   sentence, but `DailyAttendanceResponse` does not carry it —
+   §9 of the design doc says `GET /records` "gains a `policyApplications` array
+   per day"; the implementation did not add it. So Records shows *that* a day is
+   a half day, and the month view explains only the month-scoped penalties. The
+   day-level "why" exists in the database and cannot be reached from the UI.
+   Backend DTO change, small.
+3. **`GET /api/employment-types` has no `shared` flag.** `EmploymentType.company`
+   is `@JsonIgnore`, so the UI cannot tell a company-owned row from a shared
+   catalog row, and editing a shared one 404s with no forewarning. In practice
+   every row a company sees is its own, because `seed-defaults` creates
+   company-owned rows for any caller with a company and the shared catalog ships
+   empty — but `AttendancePolicyDtos.RuleResponse` already carries exactly this
+   `shared` boolean, and the employment type response should too.
+4. **`EMPLOYMENT_TYPE` policy scope means the built-in status, not the new
+   master.** `assertScopeRefExists` validates that `scopeRef` against
+   `EmployeeStatus`, so a rule scoped there matches on `Employee.status` and not
+   on the assigned employment type. The two names being near-identical is a real
+   trap; the scope's help text says so explicitly. Worth renaming one of them.
+5. **Comp-off is recorded, not bookable.** There is no comp-off leave type to
+   accrue into (section B of `dynamic-configuration.md`, not built), so the UI
+   reports the credit and says so rather than implying a balance exists.
+6. **No frontend tests.** Consistent with the rest of this codebase, which has
+   none — noted, not defended.
+
+### 16g. Verification
+
+**Done.** `CI=true npx react-scripts build` — compiles clean, zero warnings
+(CI mode treats warnings as errors, so this is a real gate). `./mvnw compile`
+on the backend — clean, for the two-line `EmployeeResponse`/`EmployeeMapper`
+change. Every request and response shape used here was checked field by field
+against the controllers and DTOs rather than against the design documents,
+which describe an approved design the implementation deviated from in six
+recorded places.
+
+Also fixed while here: `AttendanceConsoleLayout` picked its active tab with
+`TABS.find(t => pathname.startsWith(t.path))`, which lights up **Policy** when
+you are on `/attendance/policy-check`. Now takes the longest match.
+
+**Superseded by 16h — this was written before the live run.** The paragraph below is kept because the `pom.xml` finding in it is still true and still worth fixing.
+
+**Not done at the time of writing: nothing was clicked through in a running app.** The documented
+H2 quick start in §1 does not work on this checkout —
+`./mvnw spring-boot:run -Dspring-boot.run.profiles=h2` dies with
+`Cannot load driver class: org.h2.Driver`, because `pom.xml` puts the H2
+`<excludes>` block in the `spring-boot-maven-plugin`'s **plugin-level**
+`<configuration>` rather than inside the `repackage` execution, so it strips H2
+from `spring-boot:run`'s classpath as well as from the jar. The comment above it
+says "leaving it available for local dev and tests"; it does not. Moving those
+four lines into `<executions><execution><id>repackage</id>` fixes it. A backend
+instance was already running on :8080 against MySQL `julytesting` and was left
+alone. So the risks that remain are the ones a compiler cannot see: a rendering
+bug, a layout problem on a narrow screen, or a payload the server rejects at
+runtime for a reason the DTOs do not state.
+
+**The five minutes that would retire most of that risk**, once a company with
+generated attendance is available:
+
+1. Masters → Employment Types → **Set up standard types**. Four rows appear.
+   Edit `DAY_WISE`; the monthly base is editable and LOP is disabled with its
+   reason showing.
+2. Employees → edit anyone → Organisation. The new select appears. Set it, save,
+   reopen — it must still be set (this is 16c).
+3. Attendance Console → Policy → Add rule → *Late arrival penalty*, category
+   scope, grace 15, penalty Half day → **Run the test** against a month that has
+   attendance. Confirm the numbers, then set the penalty to Absent and confirm
+   both the in-form warning and the server's own warning appear.
+4. Save it. Confirm the row reads "In force" / "v1". Hit Change, save v2, switch
+   "Show past versions" on and confirm v1 is there marked Replaced.
+5. Attendance Console → Who gets which rule → that employee, a date after the
+   rule started. Confirm the rule shows as applying, and that a second, broader
+   rule of the same type appears under "matched but lost".
+6. My Attendance → that employee, that month. With a month rule configured and
+   fired, the "Policy applied this month" card and the "of which, policy
+   penalties" stat appear. With no rules configured, **neither must appear at
+   all** — that is the property the whole feature rests on.
+
+
+### 16h. Verified live, end to end (2026-09-02)
+
+Everything in 16g's "not done" list was subsequently done. A clean backend was
+booted on **port 8081** against a file-based H2, leaving the instance already
+running on :8080 untouched, and the dev server was pointed at it on :3001. Two
+obstacles and how they were got round, because both will be hit again:
+
+- **`spring-boot:run -Dspring-boot.run.profiles=h2` still does not work** (the
+  `pom.xml` plugin-level `<excludes>` described in 16g). Worked round without
+  touching `pom.xml` by running the app off the plain dependency classpath,
+  which *does* carry H2 at runtime scope:
+  `./mvnw dependency:build-classpath -Dmdep.outputFile=cp.txt` then
+  `java -cp "target/classes:$(cat cp.txt)" -Dspring.profiles.active=h2 ...`.
+- **The app refuses to boot with placeholder secrets** — `JWT_SECRET` and
+  `HRMS_SEED_PLATFORM_OWNER_PASSWORD` must both be set to real values. Both
+  guards behaved exactly as designed and are a good thing; noting them so the
+  next person does not read the stack trace as a failure.
+
+#### The scenario
+
+Four employees, **identical punches every day** (in 09:30, out 18:00, ten
+working days of August 2026, loaded straight into `device_logs`), differing only
+in category and employment status. Then four `LATE_ARRIVAL` rules, one per
+population, all effective 2026-08-01:
+
+| Rule scope | Grace | Penalty |
+|---|---|---|
+| `COMPANY` | 5 min | Half day |
+| `CATEGORY=WORKER` | 10 min | Half day |
+| `CATEGORY=STAFF` | — | **disabled** |
+| `EMPLOYMENT_TYPE=DAY_WISE` | 45 min | Half day |
+
+#### What actually happened
+
+Before any rule existed, all four employees produced byte-identical months:
+`presentDays 10.0, lopDays 16.0, policyLopDays 0, overtime 5.0`, every worked
+day `PRESENT`. That is the no-op property holding on real data.
+
+After the rules, on the same punches:
+
+| User | Category | Status | Rule that won | Worked days | Present | LOP |
+|---|---|---|---|---|---|---|
+| `STF001` | STAFF | Permanent | STAFF rule, **disabled** → nothing applies | 10 × `PRESENT` | 10.0 | 16.0 |
+| `WRK001` | WORKER | Permanent | `CATEGORY=WORKER`, 10 min | 10 × `HALF_DAY` | 5.0 | 21.0 |
+| `SUP001` | SUPERVISOR | Permanent | `COMPANY`, 5 min (no category rule) | 10 × `HALF_DAY` | 5.0 | 21.0 |
+| `DWK001` | (none) | **Day wise** | `EMPLOYMENT_TYPE=DAY_WISE`, 45 min | 10 × `PRESENT` | 10.0 | 16.0 |
+
+Same shift, same punches, four different bills. `SUP001` falling through to the
+company rule and `DWK001` being caught by the employment-status rule are the two
+that prove the precedence chain rather than just the happy path.
+
+**The preview predicted this before anything was written.** `POST /preview` over
+the same rule set returned `checked=4 affected=2 lopDelta=10.0`, named `WRK001`
+and `SUP001` with `lop 16.0 → 21.0` each, gave the per-day reason
+(`HALF_DAY: in 09:30, 20 min beyond a 10 min grace on a 09:00 shift, rule
+LATE_ARRIVAL v0 scoped CATEGORY=WORKER`), and raised its own warning: *"this
+rule set adds 10.0 LOP days across 2 of 4 employees - check that is intended
+before saving it."* The regeneration afterwards matched the prediction exactly.
+
+**A month-scoped rule was then added** (`EARLY_EXIT_BUDGET` @ `CATEGORY=STAFF`,
+60 min budget, 0.5 day per later occurrence). `STF001` went to
+`lopDays 20.5 / policyLopDays 4.5`, with the stored sentence *"600 min of early
+exit across 10 day(s) against a 60 min monthly budget; budget exhausted
+2026-08-03; 9 later early exit(s) … penalised at 0.5 day each = 4.5 LOP days"*.
+`WRK001` was untouched by it. Note this rule fired on `earlyExitMinutes`, a
+figure the application recorded and read nowhere before the engine existed.
+
+#### Screens confirmed in the browser
+
+- **Attendance → Policy** — all five rules listed with the plain-English
+  description, the population ("A category (grade) STAFF", "An employment status
+  DAY_WISE", "Everyone in the company"), In force / Stopped, version, and
+  day-vs-month scope.
+- **Attendance → Who gets which rule** — for `WRK001`: the identity chips, the
+  company-wide thresholds it sits on, `Late arrival penalty · Applies ·
+  "More than 10 min late makes the day a half day" · Why: most specific match:
+  CATEGORY=WORKER`, and the expanded loser: *"Everyone in the company (v1, from
+  01 Aug 2026) — More than 5 min late makes the day a half day."* For `STF001`:
+  `Not configured` with *"Why: the most specific match (CATEGORY=STAFF) is
+  disabled, so this rule type does not apply to this employee"* — the "disabled
+  is an answer, not an absence" rule, in words an employee could be shown.
+- **My Attendance, signed in as `STF001` (a plain EMPLOYEE)** — the
+  "Policy applied this month" card with *"Monthly early-exit budget — 4.5 unpaid
+  day(s)"* and the full stored explanation. On September, which has no outcomes,
+  the card is correctly **absent**.
+
+#### Two real bugs the live run caught
+
+1. **`display="block"` on `Typography` does nothing in MUI 9.** It was a v5
+   system prop; MUI 9 drops it, so eleven captions across `PolicyEffective` and
+   `PolicyRuleDialog` rendered as inline `<span>`s and ran into the following
+   line — on screen this read
+   `"… workers get 10 minWhy: most specific match…"`. Changed to
+   `sx={{ display: 'block' }}`, which is what the rest of this codebase already
+   uses (e.g. `Records.jsx:141`). **Worth grepping for on any new page.**
+2. **`EmployeePicker` had no minimum width** and collapsed to a ~40px box
+   reading "Employ…" inside the flex `Stack` that every `PageHeader` puts its
+   actions in — it has no natural width of its own the way the date pickers
+   beside it do. Given `sx={{ minWidth: 240 }}`. This is **pre-existing** and
+   affects Records, MyAttendance and the roster screens too, so the fix is an
+   improvement to all of them rather than only to the new page.
+
+Neither was catchable by a compiler, which is exactly why 16g flagged them as
+the residual risk.
+
+#### Still not exercised
+
+The **Add rule dialog** was not driven through the browser — the rules above
+were created over the API. Its five steps, the in-form `ABSENT` warning, and the
+"Run the test" panel are therefore verified only at the level of the endpoints
+they call (all four of which were exercised directly) and a clean compile. The
+same is true of the **Employment Types** master. Both are the obvious next thing
+to click through.
+
+---
+
+## 17. Labour contractors: a separate workforce, a shared shift catalog (2026-09-06)
+
+A client company engages labour contractors and does not care what those
+contractors pay their people — it cares that they turned up. This section adds
+the whole loop for that: onboard the contractor, register the workers they
+deploy, roster those workers onto our shifts, generate their attendance, and
+hand the contractor a report they run their own payroll from.
+
+### 17a. The design decision everything else follows from
+
+**A contractor's worker is an `Employee` row with a `contractor_id`, not a row
+in a new table.** `ShiftSchedule`, `DailyAttendance`, `DeviceLog` and
+`MonthlyAttendanceSummary` are all keyed by the plain `user_id` *string*, and
+`Employee.userId` is unique platform-wide precisely because the biometric feed
+resolves a punch by it alone. A parallel worker table would have had to either
+share that key space anyway — reintroducing the collision the global constraint
+exists to prevent — or grow a second copy of the attendance engine. One
+nullable foreign key buys the punch window, the night-shift handover, the
+policy engine, HR corrections and payroll locking unchanged.
+
+The cost is that "every employee of this company" now means two things, and
+the feature turns entirely on getting that right. Full rationale in
+[ARCHITECTURE.md](../../Accusharp/ARCHITECTURE.md)'s "Labour contractors"
+section; the short version is that `EmployeeService.getActiveEntities()` and
+`getAllEntities()` were already the single choke points every company-wide
+operation resolved its population through, and both now filter
+`contractor IS NULL`. Payroll, the dashboard, `ReportScope` (and therefore
+every statutory return), the employee directory and the shift planner all
+exclude contractor workers without any of them being edited.
+
+### 17b. Backend
+
+New: `Contractor` entity, `Employee.contractor`, `ContractorRepository`,
+`ContractorService` / `ContractorEmployeeService` / `ContractorAttendanceService`
+(`service/contractor`), `ContractorAttendanceReportService` (`service/report`),
+`ContractorController`, `ContractorMapper`, and the request/response DTOs.
+`CONTRACTOR_READ` / `CONTRACTOR_MANAGE` join `PermissionCode` and the seeder.
+
+Three things worth carrying forward:
+
+1. **`ContractorEmployeeRequest` has no salary, statutory, bank or `role`
+   field.** Not "ignored if supplied" — *absent*, which is what makes them
+   unsettable rather than a comment asking callers not to. The service
+   additionally pins `role = EMPLOYEE`, `accountEnabled = false` with no
+   password hash, and `status = CONTRACT`.
+2. **That `status = CONTRACT` is load-bearing.** `DefaultRosterService` reads
+   `EmployeeStatus` to decide who gets a free `GENERAL` roster two months
+   ahead; a contractor's workers must not, because they are on site only for
+   the days their contractor sends them. Auto-rostering would manufacture
+   absent days — and therefore an invoice dispute — for days nobody was
+   expected. Same reason `includeUnrostered` defaults to **false** for a
+   contractor run and **true** for the company console.
+3. **The employee endpoints now 404 a contractor's worker on every write**
+   (`getCompanyEmployeeById`), so `PUT /api/employees/{id}` can never write an
+   `EmployeeRequest` — gross salary, derived structure, a `role` — over
+   somebody this company does not pay.
+
+`ContractorWorkforceHttpTest` (11 tests) pins the isolation properties
+specifically, because a regression in any of them is silent in production
+until a payslip is generated for somebody else's employee.
+
+### 17c. Frontend
+
+`src/api/contractors.js` and five pages under `src/pages/Contractors/`, behind
+`ContractorsLayout`'s tab bar at `/contractors/*`, plus `ContractorPicker` in
+`components/`. Its own nav section rather than a row under HR Admin: SUPERVISOR
+can see it (they hold `CONTRACTOR_READ` and are the ones assigned to these
+workers) while the rest of HR Admin is HR/ADMIN only.
+
+| Page | What it is |
+|---|---|
+| `ContractorList` | CRUD over the agencies. Deactivate is refused while workers are still on site — the API 409s and the snackbar shows why |
+| `ContractorWorkforce` | Every contractor's workers in one table, **contractor name as the first column**, filterable to one. Defaults to all: a company with three agencies wants the whole deployed headcount before it narrows |
+| `ContractorRoster` | The company shift catalog, one contractor's workers. Never both populations in one grid — `plannerScope(supervisorUserId, contractorId)` returns one or the other |
+| `ContractorAttendance` | The same generate/preview flow as the company console, scoped to one contractor |
+| `ContractorReports` | Monthly summary, daily register, and all-contractors — the last being the side-by-side view a multi-contractor company reads |
+
+Exports are server-rendered (`responseType: 'blob'`), not a dump of the grid,
+because the monthly sheet appends the contractor's totals below the rows — the
+figure they invoice against has to travel in the same file as the rows it came
+from.
+
+### 17d. What was verified
+
+Driven in the browser against a real backend (H2 profile) with two contractors
+and five workers:
+
+- onboarding a contractor through the dialog, and the list rendering it;
+- the workforce table showing both agencies' workers with the contractor name
+  against each;
+- the contractor roster planner showing **only** the selected contractor's
+  three workers, rostered `GENERAL` with Sunday week-offs;
+- generate + preview reporting "3 workers processed, 90 days";
+- the monthly report, its header card (contact person and email — the people
+  the report is sent to), and the all-contractors table listing both agencies
+  with their totals;
+- **the isolation, positively**: `/employees`, `/reports/employees`, the
+  company `/roster/planner` and a company-wide `POST /api/attendance/generate`
+  each returned exactly the three own-staff records and none of the five
+  contractor workers.
+
+343 backend tests pass, and `CI=true react-scripts build` is clean.
+
+### 17e. Not done
+
+- **No punch data was exercised.** The local instance has no biometric feed, so
+  every generated day came back `ABSENT` — correct behaviour, but it means the
+  hours/overtime columns on the reports were verified as zeros rather than
+  against real punches. Worth re-running once `device_logs` has rows.
+- **No CSV bulk import for contractor workers.** The four existing bulk
+  endpoints share one shape (`ParsedCsvRow` + `BulkImportResult`); a fifth for
+  this would slot straight in and is the obvious next addition — onboarding 200
+  workers one dialog at a time is the first thing a real site will complain
+  about.
+- **Contractor workers have no leave.** They have no login and no balance, so
+  the leave module simply never sees them. If a contractor's workers should be
+  able to take approved paid leave that affects the attendance report, that is
+  a deliberate design decision nobody has made yet.
+- **The `h2` profile does not start as documented** (pre-existing, unrelated to
+  this work): `spring-boot-maven-plugin`'s `<excludes>` for `com.h2database` is
+  configured at plugin level, so it applies to `spring-boot:run` as well as
+  `repackage` and the driver is not on the classpath. Workaround used here was
+  `-Dspring-boot.excludes=`; the real fix is moving the exclusion inside the
+  `repackage` execution.
+
+---
+
+## 18. A public marketing site in front of the login (2026-09-06)
+
+### 18a. The problem this solves
+
+Visiting the app's root put a visitor straight on the sign-in card. That is
+correct for a user, and wrong for a demo — a prospect being shown the product
+had no page that said who AccuSharp is or what the system does before being
+asked for credentials.
+
+Four public pages now sit in front of the login: **Home**, **Services**,
+**About us** and **Contact**. Nothing about the application itself changed.
+
+### 18b. Scope discipline
+
+No application functionality was touched. Specifically: no API module, no
+`AuthContext`, no `RequireRole`, no `navConfig`, no permission semantics, no
+page under `src/pages/` other than the new `Site/` folder, and no change to
+the sign-in flow itself. The public pages make **zero** network calls — they
+render static copy from one file and nothing else. The only edits to existing
+files are the three below.
+
+### 18c. What was added
+
+| File | Role |
+|---|---|
+| `src/content/siteContent.js` | **All** public copy — the only file to edit to change what the site says |
+| `src/layout/SiteLayout.jsx` | Public header (sticky, mobile drawer) + footer + `<Outlet/>` |
+| `src/pages/Site/ui.jsx` | Shared primitives: `Section`, `SectionHeading`, `FeatureCard`, `IconTile`, `CtaBand`, icon-name map |
+| `src/pages/Site/PageHero.jsx` | Compact hero for the three inner pages |
+| `src/pages/Site/Home.jsx` | Hero + stats + module strip + why-us + how-it-works + compliance + who-it's-for + CTA |
+| `src/pages/Site/Services.jsx` | The ten product modules, the six engagement services, statutory compliance |
+| `src/pages/Site/About.jsx` | Story, mission, values, by-the-numbers, optional leadership |
+| `src/pages/Site/Contact.jsx` | Enquiry form (mailto), contact details, what-happens-next |
+
+### 18d. The three edits to existing files
+
+1. **`src/App.js`** — four public routes added inside a `<Route element={<SiteLayout/>}>`
+   block, placed *before* `/login`. The protected route tree below it is
+   byte-for-byte what it was.
+2. **`src/components/ProtectedRoute.jsx`** — one line. An unauthenticated
+   visitor at `/` now goes to `/home` instead of `/login`; **any other**
+   protected path still goes to `/login` exactly as before. An authenticated
+   user at `/` is unaffected — `RootRedirect` still runs and still routes
+   platform principals to `/platform/companies` and plain employees to
+   `/attendance/me`.
+3. **`src/pages/Auth/Login.jsx`** — a "← Back to home" link under the card.
+   Purely navigational; the form, the submit handler and the `initializing` /
+   `isAuthenticated` branches are untouched.
+
+### 18e. Design decisions worth knowing
+
+- **Same design tokens as the app.** The site imports nothing of its own —
+  teal accent, navy (`sidebar.background`), the card border/shadow treatment
+  and the type scale all come from `src/theme/theme.js`. A visitor who signs
+  in lands somewhere that looks like the site they just left.
+- **No images, anywhere.** The hero's "product preview" is composed from MUI
+  boxes rather than a screenshot, so there is no asset to keep in sync with a
+  UI that is still changing, and it stays crisp at any size. Nothing loads
+  from a CDN.
+- **Every number on the site is countable in the codebase.** 27 reports (the
+  lazy imports in `App.js`), 10 modules, 6 roles, 5 statutory heads. No
+  invented customer counts, no invented uptime figure.
+- **Fake customers cannot appear by accident.** `testimonials` and
+  `about.leadership` are empty arrays, and both sections return `null` while
+  empty. Fill them in and the section appears; leave them and a demo shows
+  nothing invented.
+- **The contact form posts nowhere.** It composes a `mailto:` and hands off to
+  the visitor's mail client. This site is public and unauthenticated; an
+  enquiry endpoint would be a new unauthenticated write path into the API, and
+  there is no mail infrastructure in the app to deliver it anyway (see §7).
+  Swap it for a real `POST` the day such an endpoint exists.
+
+### 18f. What still needs the client's own detail
+
+Everything marked `SAMPLE` in `src/content/siteContent.js`: legal name,
+founded year, office address, phone, both email addresses, business hours, and
+the three paragraphs of `about.story`. The pages render correctly as they
+stand — the placeholders are plausible, not lorem ipsum — but they are
+placeholders and should be replaced before the site is shown as final.
+
+### 18g. Verified
+
+- `CI=false react-scripts build` → **Compiled successfully**, no warnings.
+- Rendered in the browser at 1440px, 1280px and 390px: hero, all four pages,
+  the mobile hamburger drawer, and the footer.
+- `/` while signed out → redirects to `/home` (confirmed via `location.pathname`).
+- `/employees` while signed out → still redirects to `/login`, unchanged.
+- The login card renders as before, with the new back-link beneath it.
+
+---
+
+## 19. Product rename (Accusharp → Muster) and a rebuilt sign-in screen (2026-09-06)
+
+### 19a. The name
+
+"Accusharp" was a **client's** name used as a working title through
+development. Everything user-visible is now **Muster**; the product is
+**Muster HRMS**.
+
+A *muster roll* is the statutory attendance register every Indian factory
+already keeps — Form 12 under the Factories Act, and separately required under
+the Contract Labour Act. It is the exact word this product's buyers already use
+for the exact artifact it produces. Short, a real English word, no spelling to
+explain, and meaningful to an HR or payroll team without a sentence of
+introduction.
+
+**Before registering it, check `muster.in` / a `.com` variant and run a
+trademark search in class 9/42.** "Muster" is a common word and there is at
+least one unrelated US SaaS using it.
+
+Runner-up names, if this one is unavailable — each is a one-line change in
+`src/constants/brand.js`:
+
+| Name | Why |
+|---|---|
+| **Kaarya** (कार्य, "work") | Distinctly Indian, trivially trademarkable, no collision risk |
+| **Vetan** (वेतन, "wages") | Instantly meaningful to a payroll team; narrower than Muster |
+| **Shiftwise** | Plain English, descriptive, safest and least distinctive |
+
+### 19b. One file owns the name
+
+New: **`src/constants/brand.js`** — `name`, `productName`, `legalName`,
+`initial`, `tagline`. Everything user-visible reads from it: the public site
+(via `siteContent.js`, which spreads `BRAND` into `company`), `SiteLayout`'s
+header/footer lockup and tab titles, `AppLayout`'s sidebar wordmark, and the
+sign-in screen. Renaming the product again is now five strings in one file.
+
+Deliberately **not** renamed, and why:
+
+- the `accusharp` npm package name and the repo/folder names — not user-visible,
+  and renaming churns tooling, IDE run configs and the Dockerfile for nothing;
+- **`accusharp.lastActivity`** in `IdleSessionGuard.jsx` — a cross-tab
+  `localStorage` contract (see §"Idle session timeout" in REDESIGN_HANDOFF.md).
+  Renaming it mid-deploy would leave two tabs on different keys;
+- API paths, which carry no brand at all.
+
+`public/index.html` (title + description) and `public/manifest.json` were
+updated directly, being static files. The manifest was still carrying CRA's
+stock `"React App"` / `"Create React App Sample"` and a black theme colour —
+fixed at the same time.
+
+### 19c. The sign-in screen was one small card on an empty page
+
+Rebuilt `src/pages/Auth/Login.jsx` as a two-panel screen:
+
+- **Left, `md` and up:** navy (`sidebar.background`) brand panel with a teal
+  radial wash, the lockup, a headline, three value lines, and the copyright.
+  Hidden below `md`, where a compact lockup above the card carries the branding
+  instead.
+- **Right:** the form, now with a page-level `Sign in` heading, a sub-line
+  telling a new joiner where their User ID comes from, a **show/hide password
+  toggle**, `autoComplete="username"` / `"current-password"` so password
+  managers work, and an honest note that password reset is HR-mediated rather
+  than a "Forgot password?" link that goes nowhere (there is no self-service
+  reset — see the PRD's non-goals).
+- **Back to Muster** link under the card, into the public site.
+
+**The authentication behaviour is byte-for-byte what it was.** Same
+`login(username, password)` call, same `submitting` handling, same
+`initializing` spinner branch, same declarative `<Navigate>` (the comment
+explaining why there is no imperative `navigate()` here is preserved verbatim —
+that race caused a real intermittent blank landing page). The only new state is
+`showPassword`, which toggles the input's `type` and nothing else.
+
+### 19d. Verified
+
+- `CI=false react-scripts build` → **Compiled successfully**, no warnings.
+- Sign-in screen rendered at 1440px (split panel) and 390px (stacked lockup).
+- Public site re-checked after the rename: `document.body.innerText` on `/home`
+  contains no occurrence of the old name, and `/about`'s story paragraphs
+  interpolate correctly ("Muster started with…", "Muster HRMS treats…").
+- Per-page tab titles confirmed live: `About us · Muster HRMS`.
+- `grep -rni accusharp src public` now returns only the three intentional
+  exceptions listed in §19b.
+
+---
+
+## 20. Palette change (teal → single-accent blue) and a light sidebar (2026-09-06)
+
+### 20a. Why the teal had to go
+
+The brief was "professional, Apple-like, and mindful of colour in India". Those
+two constraints point at the same answer.
+
+**In India, the two obvious "warm brand" choices are loaded.** Saffron reads as
+religiously and politically coded — it is the colour of renunciation and of
+sadhus' robes, and of a national party. Saturated green carries a strong
+association with Islam (paradise, divine mercy), and green next to saffron
+reads as the flag. The previous accent, `#0F9D8B`, sat in the green family and
+was the single most-used colour in the product.
+
+**Blue is the one hue without that loading.** Ambedkar chose it for the
+Scheduled Castes Federation flag in 1942 specifically because it carried no
+overt association, and it is the default of Indian enterprise (HDFC, TCS,
+Infosys, SBI). Green and red survive in the palette **only as status colours**,
+which is a universal interface convention rather than a brand statement.
+
+**Apple's actual formula is achromatic restraint plus one accent.** Near-black
+ink `#1D1D1F` on parchment `#F5F5F7`, white surfaces, hairline borders, and a
+single interactive blue used for every actionable thing. No second brand hue,
+no decorative gradients, and effectively no shadows on chrome — hairlines and
+surface contrast do the separating. That is a good fit for a payroll product
+independently of taste: if blue is the only non-status colour on screen, then
+anything coloured is either actionable or a status, and a dense table reads
+faster.
+
+### 20b. The palette
+
+Every value was checked against the surface it is actually used on:
+
+| Token | Value | Contrast |
+|---|---|---|
+| `accent.main` | `#0A57C2` | 6.7:1 white-on-blue, 6.1:1 blue-on-canvas |
+| `accent.dark` | `#08459B` | hover/pressed |
+| `accent.light` | `#5B9BE5` | 5.8:1 on ink — dark surfaces only |
+| `accent.soft` | `#EAF1FB` | tinted fills, selected nav |
+| `text.primary` | `#1D1D1F` | 15.5:1 on canvas |
+| `text.secondary` | `#6E6E73` | 5.1:1 on white |
+| `neutral.bg` / `surface` / `border` | `#F5F5F7` / `#FFFFFF` / `#E5E5E7` | — |
+| `success` / `error` | `#217A46` / `#C0342B` | 5.3:1 / 5.6:1 |
+| `warning` | `#965900` | 5.6:1 |
+
+**A real accessibility bug was fixed in passing.** `warning.main` was `#B76E00`
+with a comment claiming it had been darkened to clear AA. It measures **4.0:1
+on white and 3.7:1 on the canvas** — under AA for normal text. It is now
+`#965900` (5.6:1). Everything else in the old palette was fine; this one was
+not, and the comment made it look verified.
+
+Two new tokens:
+
+- **`ink`** (`#1D1D1F`) — the deliberately dark surfaces: the marketing
+  footer and closing band, and the sign-in brand panel. Previously these
+  borrowed `sidebar.background`, which is why they had to be split out before
+  the sidebar could change colour independently.
+- **`sidebar.backgroundHover` / `sidebar.border`** — needed once the column
+  went light.
+
+Marketing CTAs are now pill-shaped (`borderRadius: 999`), which is apple.com's
+signature; **application** buttons stay rounded rectangles, because pills on a
+dense toolbar read as toy-like. Apple splits the same way.
+
+### 20c. The sidebar: light first, then corrected to ink
+
+**First attempt (wrong for this product).** The sidebar was made light — white
+column, hairline edge, soft blue pill for the active item — on the reasoning
+that every Apple pro app (Finder, Mail, Notes, Xcode) draws one that way, and
+that ~26 nav entries in a navy column is a lot of ink next to the data.
+
+That is correct by the rulebook and wrong here, and the user said so
+immediately: *"there is no combination — somewhere I am seeing dark blue and
+the sidebar is directly white."* They were right. This product has dark
+surfaces on **both sides of the sign-in boundary** — the sign-in brand panel
+and the marketing footer/closing band — so a white column between them read as
+two unrelated products stitched together. Apple's pro apps get away with a
+light sidebar because nothing else in those apps is dark.
+
+**What it is now.** The sidebar is the same `ink` surface as everything else
+that is deliberately dark. There is exactly **one** dark colour in the product,
+`#1C1D21`, and the app shell, the sign-in panel and the site footer all use it.
+Sign in and the dark panel you were looking at simply becomes the dark column
+you keep working in.
+
+| Sidebar token | Value | Contrast |
+|---|---|---|
+| `background` | `#1C1D21` | 15.5:1 vs the canvas |
+| `backgroundActive` | `#0B62DE` | 5.5:1 for its white label, 3.1:1 vs the column |
+| `backgroundHover` | `rgba(255,255,255,0.07)` | — |
+| `text` | `#A1A1A6` | 6.6:1 |
+| `sectionLabel` | `#8A8A8F` | 4.9:1 |
+| `border` | `rgba(255,255,255,0.08)` | brand divider + right edge |
+
+The active item is a **solid accent pill**, lifted from the base accent
+(`#0A57C2` → `#0B62DE`) so it carries on near-black while keeping its white
+label above AA. That pill is the only place the brand blue appears in the
+chrome, and it is what ties the dark shell to the blue primary buttons in the
+content area — the "combination" that was missing.
+
+`AppLayout.jsx` edits, all styling: the drawer paper carries a right hairline,
+the brand lockup is separated from the nav list by that same hairline, the
+wordmark reads `sidebar.textActive`, and the selected/hover states use
+`sidebar.textActive` / `sidebar.backgroundHover` instead of the hardcoded
+`#fff` and `rgba(255,255,255,0.06)` they used before.
+
+**The lesson worth keeping:** copying a reference design's rule (light sidebar)
+without checking the rest of the surface inventory produced something
+defensible on paper and disjointed on screen. The fix was not "go back to
+navy" — it was to make every dark surface in the product literally the same
+colour.
+
+### 20d. Nav icons: four identical umbrellas
+
+`My Workspace` had **four consecutive items** (`Apply Leave`, `My Leaves`,
+`Leave Calendar`, `Leave Balances`) all rendering the same
+`BeachAccessRoundedIcon`, plus two more elsewhere. An icon column where four
+adjacent rows share a glyph is decoration, not navigation. Now:
+`EditCalendar` / `BeachAccess` / `DateRange` / `DonutSmall`, plus
+`PendingActions` for approvals and `FactCheck` for All Leaves. Labels, paths,
+roles and order are untouched.
+
+### 20e. The structural sidebar problem — analysed, NOT changed
+
+Worth knowing before anyone touches nav again. **The sidebar duplicates
+navigation that already exists inside the pages.** The app has six tabbed
+layouts (`LeaveLayout`, `AttendanceConsoleLayout`, `PayrollLayout`,
+`MastersLayout`, `RosterLayout`, `ContractorsLayout`), and the sidebar *also*
+lists the individual tabs as separate top-level entries:
+
+| Section | Sidebar entries today | Entries if the tab owner is listed once |
+|---|---|---|
+| Leave (self-service) | 4 | 1 |
+| Contractors | 5 | 1 |
+| Leave (HR) + approvals | 2 | 2 |
+| **ADMIN total visible** | **~26** | **~14** |
+
+Published guidance puts the practical ceiling at 5–8 items per group before a
+sidebar starts to feel overwhelming; several groups here are well past it.
+Collapsing each tabbed module to a single entry would halve the list and lose
+nothing — every removed destination stays reachable as the tab it already is.
+
+**Not done in this pass, deliberately.** Changing which destinations are
+directly reachable is a navigation change, not a styling one, and it was asked
+about rather than asked for. It is a `navConfig.js`-only edit when someone
+wants it — no route in `App.js` would change, and `RequireRole` reads only the
+exported role constants, not the item list.
+
+### 20f. Verified
+
+- `CI=false react-scripts build` → **Compiled successfully**, no warnings.
+- Contrast ratios computed, not eyeballed — see the table in §20b.
+- Both sidebar versions were rendered and screenshotted — including the
+  selected state, and the second time against a mock top bar, card and primary
+  button so the whole composition could be judged — via a **temporary** public
+  preview route (`SidebarContent` exported, a throwaway page, one route). All
+  of it was removed afterwards both times; `grep -rn "SidebarPreview" src`
+  returns nothing. Signing in to look at the real thing was not an option —
+  that needs credentials.
+- Public site, sign-in screen (1440px split panel and 390px stacked), the
+  ink footer and closing band all re-checked after the palette change.

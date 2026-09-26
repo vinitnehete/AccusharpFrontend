@@ -16,7 +16,10 @@ export default function ProtectedRoute() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    // An anonymous visitor landing on the site root gets the public home page
+    // rather than a sign-in form; any other protected path still goes to
+    // /login exactly as before.
+    return <Navigate to={location.pathname === '/' ? '/home' : '/login'} replace />;
   }
 
   // A temporary password (fresh account, or an HR-triggered reset) must be

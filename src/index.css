@@ -13,7 +13,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #F4F6F8;
+  background: #F5F5F7;
 }
 
 code {
@@ -32,7 +32,7 @@ code {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #C4CDD5;
+  background: #C7C7CC;
   border-radius: 8px;
 }
 

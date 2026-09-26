@@ -48,8 +48,22 @@ export default function Planner() {
       renderCell: (params) => {
         const value = params.value;
         if (!value) return null;
-        if (value === 'WO') return <Chip label="WO" size="small" />;
-        return <Chip label={value} size="small" color="primary" variant="outlined" />;
+        // A defaulted day is the employee's usual shift, derived from their
+        // fixed shift and weekly off rather than assigned by anyone. Shown
+        // faded so this screen still answers "what have I actually planned?"
+        // at a glance - which is what HR opens it to find out.
+        const defaulted = params.row.defaultedByDate?.[params.field];
+        const sx = defaulted ? { opacity: 0.45 } : undefined;
+        if (value === 'WO') return <Chip label="WO" size="small" sx={sx} />;
+        return (
+          <Chip
+            label={value}
+            size="small"
+            color="primary"
+            variant="outlined"
+            sx={sx}
+          />
+        );
       },
     }));
     return [
@@ -65,6 +79,9 @@ export default function Planner() {
       id: r.userId,
       userId: r.userId,
       employeeName: r.employeeName,
+      // Kept as a whole map rather than spread, so it cannot collide with the
+      // date-keyed shift columns above.
+      defaultedByDate: r.defaultedByDate ?? {},
       ...r.shiftByDate,
     }));
   }, [data]);
@@ -88,7 +105,7 @@ export default function Planner() {
     <>
       <PageHeader
         title="Roster Planner"
-        subtitle="One row per employee, one column per date — shift code or WO for weekly off"
+        subtitle="One row per employee, one column per date — shift code or WO for weekly off. Faded cells are the employee’s usual shift, not an assignment."
         actions={
           <>
             <DatePicker

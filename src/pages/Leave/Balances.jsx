@@ -16,11 +16,27 @@ import DialogActions from '@mui/material/DialogActions';
 import LinearProgress from '@mui/material/LinearProgress';
 import { useSnackbar } from 'notistack';
 import PageHeader from '../../components/PageHeader';
+import DataTable from '../../components/DataTable';
 import EmployeePicker from '../../components/EmployeePicker';
 import leaveBalancesApi from '../../api/leaveBalances';
+import leaveSettingsApi from '../../api/leaveSettings';
 import { labelize } from '../../constants/enums';
 import { useActingAs } from '../../context/ActingAsContext';
 import { useAuth } from '../../context/AuthContext';
+
+// Each row is one posting onto the year's balances, with its reason in words.
+const CREDIT_COLUMNS = [
+  { field: 'period', headerName: 'For', width: 90 },
+  { field: 'leaveType', headerName: 'Leave', width: 130, valueFormatter: (v) => labelize(v) },
+  {
+    field: 'kind',
+    headerName: 'What',
+    width: 140,
+    valueFormatter: (v) => (v === 'CARRY_FORWARD' ? 'Carried forward' : 'Earned'),
+  },
+  { field: 'days', headerName: 'Days', width: 80 },
+  { field: 'basis', headerName: 'Why', flex: 1, minWidth: 320 },
+];
 
 function BalanceCard({ balance, canEdit, onEdit }) {
   const pct = balance.quota > 0 ? Math.min(100, (Number(balance.used) / Number(balance.quota)) * 100) : 0;
@@ -61,6 +77,8 @@ export default function Balances() {
   const [userId, setUserId] = useState(actingAs?.userId || null);
   const [year, setYear] = useState(new Date().getFullYear());
   const [balances, setBalances] = useState([]);
+  const [credits, setCredits] = useState([]);
+  const [yearStartMonth, setYearStartMonth] = useState(1);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
   const [quotaValue, setQuotaValue] = useState('');
@@ -70,6 +88,18 @@ export default function Balances() {
     setUserId(actingAs?.userId || null);
   }, [actingAs]);
 
+  // Open on the leave year today falls in - for a financial-year company that
+  // is last calendar year's number until April.
+  useEffect(() => {
+    leaveSettingsApi
+      .get()
+      .then((s) => {
+        setYearStartMonth(s.leaveYearStartMonth);
+        setYear(s.currentLeaveYear);
+      })
+      .catch(() => {});
+  }, []);
+
   const load = () => {
     if (!userId) return;
     setLoading(true);
@@ -78,6 +108,10 @@ export default function Balances() {
       .then(setBalances)
       .catch(() => setBalances([]))
       .finally(() => setLoading(false));
+    leaveBalancesApi
+      .credits(userId, year)
+      .then(setCredits)
+      .catch(() => setCredits([]));
   };
 
   useEffect(load, [userId, year]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -99,16 +133,21 @@ export default function Balances() {
     <>
       <PageHeader
         title="Leave Balances"
-        subtitle="Casual, sick and unpaid leave quota, used and available"
+        subtitle="Casual, sick, earned and unpaid leave - quota, used and available"
         actions={
           <>
             {isHrOrAdmin && <EmployeePicker label="Employee" value={userId} onChange={setUserId} />}
             <TextField
               size="small"
-              label="Year"
+              label="Leave year"
               value={year}
               onChange={(e) => setYear(e.target.value.replace(/[^0-9]/g, ''))}
-              sx={{ width: 110 }}
+              helperText={
+                yearStartMonth === 4 && String(year).length === 4
+                  ? `${year}-${String((Number(year) + 1) % 100).padStart(2, '0')} (Apr–Mar)`
+                  : undefined
+              }
+              sx={{ width: 150 }}
             />
           </>
         }
@@ -130,6 +169,15 @@ export default function Balances() {
             </Grid>
           ))}
         </Grid>
+      )}
+
+      {credits.length > 0 && (
+        <>
+          <Typography variant="subtitle1" sx={{ mt: 4, mb: 1 }}>
+            How this year's balance was built
+          </Typography>
+          <DataTable rows={credits} columns={CREDIT_COLUMNS} height={320} pageSize={12} density="compact" />
+        </>
       )}
 
       <Dialog open={!!editing} onClose={() => setEditing(null)} maxWidth="xs" fullWidth>

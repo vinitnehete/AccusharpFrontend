@@ -19,6 +19,11 @@ export default function EmployeePicker({
   return (
     <Autocomplete
       size={size}
+      // Without a floor the Autocomplete shrinks to its content inside the
+      // flex Stack every PageHeader puts it in, collapsing to a ~40px box
+      // showing "Employ..." - it has no natural width of its own the way the
+      // date pickers beside it do.
+      sx={{ minWidth: 240 }}
       options={options}
       value={selected}
       disabled={disabled}
