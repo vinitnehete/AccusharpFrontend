@@ -32,7 +32,7 @@ const columns = [
     headerName: 'Exceptions',
     width: 300,
     renderCell: (params) => (
-      <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+      <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
         {String(params.value || '')
           .split(', ')
           .filter(Boolean)

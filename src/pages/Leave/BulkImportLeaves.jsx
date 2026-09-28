@@ -90,7 +90,7 @@ export default function BulkImportLeaves() {
               <code>duration</code> defaults to <code>FULL_DAY</code> when left blank;{' '}
               <code>reason</code> is optional.
             </Alert>
-            <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
+            <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
               <CsvFileField value={file} onChange={setFile} />
               <Button
                 size="small"

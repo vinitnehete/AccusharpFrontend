@@ -198,7 +198,7 @@ export default function Generate() {
               </Alert>
             )}
 
-            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', mb: 2, gap: 1 }}>
+            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', mb: 2 }}>
               <Chip label={`${result.employeesProcessed} employees processed`} color="primary" />
               <Chip
                 label={`${result.daysGenerated} days ${result.dryRun ? 'would be generated' : 'generated'}`}

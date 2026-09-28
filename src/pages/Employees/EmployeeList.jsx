@@ -14,6 +14,7 @@ import PersonOffRoundedIcon from '@mui/icons-material/PersonOffRounded';
 import { useSnackbar } from 'notistack';
 import PageHeader from '../../components/PageHeader';
 import DataTable from '../../components/DataTable';
+import FilterBar from '../../components/FilterBar';
 import StatusChip from '../../components/StatusChip';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import employeesApi from '../../api/employees';
@@ -177,7 +178,7 @@ export default function EmployeeList() {
           )
         }
       />
-      <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap' }}>
+      <FilterBar>
         <TextField
           size="small"
           label="Search"
@@ -214,7 +215,7 @@ export default function EmployeeList() {
           <MenuItem value="ACTIVE">Active</MenuItem>
           <MenuItem value="INACTIVE">Inactive</MenuItem>
         </TextField>
-      </Stack>
+      </FilterBar>
       <DataTable
         rows={filtered}
         columns={columns}

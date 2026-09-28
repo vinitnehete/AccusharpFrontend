@@ -10,10 +10,11 @@ body,
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #F5F5F7;
+  background: #F3F5F9;
+  text-rendering: optimizeLegibility;
 }
 
 code {
@@ -26,14 +27,28 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
+/* Thin, quiet scrollbars that only darken on hover - the sidebar and wide
+   tables scroll a lot, and a heavy gutter there is pure noise. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #CDD3DC transparent;
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #C7C7CC;
-  border-radius: 8px;
+  background: #D5DAE2;
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #B9C1CD;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-track {

@@ -540,7 +540,7 @@ export default function EmployeeDetail() {
                     No custom roles assigned.
                   </Typography>
                 ) : (
-                  <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+                  <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', mb: 1.5 }}>
                     {customRoles.map((r) => (
                       <Chip
                         key={r.id}

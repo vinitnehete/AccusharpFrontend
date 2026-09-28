@@ -10,7 +10,6 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
-import Avatar from '@mui/material/Avatar';
 import IconButton from '@mui/material/IconButton';
 import Drawer from '@mui/material/Drawer';
 import List from '@mui/material/List';
@@ -19,12 +18,19 @@ import ListItemText from '@mui/material/ListItemText';
 import Divider from '@mui/material/Divider';
 import Link from '@mui/material/Link';
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import MailOutlineRoundedIcon from '@mui/icons-material/MailOutlineRounded';
 import PhoneInTalkRoundedIcon from '@mui/icons-material/PhoneInTalkRounded';
 import { alpha } from '@mui/material/styles';
 import { BRAND } from '../constants/brand';
 import { company, contact, footerNote } from '../content/siteContent';
+
+// Height the floating header occupies (top gap + pill). Every public page
+// opens with a hero that is pulled up underneath it by this much, so the
+// hero's soft background runs behind the frosted header instead of stopping
+// at a hard edge. Heroes add the same amount to their top padding.
+export const HEADER_OFFSET = { xs: 72, md: 80 };
 
 const NAV = [
   { label: 'Home', to: '/home' },
@@ -46,12 +52,31 @@ const PAGE_TITLES = {
 export function BrandMark({ onDark = false, size = 36 }) {
   return (
     <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-      <Avatar sx={{ bgcolor: 'primary.main', fontWeight: 700, width: size, height: size }}>
+      <Box
+        aria-hidden
+        sx={{
+          width: size,
+          height: size,
+          borderRadius: '10px',
+          display: 'grid',
+          placeItems: 'center',
+          color: 'common.white',
+          fontWeight: 700,
+          fontSize: size * 0.46,
+          background: 'linear-gradient(140deg, #4F8BF9 0%, #2563EB 55%, #1D4ED8 100%)',
+          boxShadow: `inset 0 1px 0 ${alpha('#FFFFFF', 0.25)}, 0 2px 6px ${alpha('#2563EB', 0.3)}`,
+        }}
+      >
         {BRAND.initial}
-      </Avatar>
+      </Box>
       <Box>
         <Typography
-          sx={{ fontWeight: 800, lineHeight: 1.1, color: onDark ? 'common.white' : 'text.primary' }}
+          sx={{
+            fontWeight: 700,
+            lineHeight: 1.1,
+            letterSpacing: '-0.01em',
+            color: onDark ? 'common.white' : 'text.primary',
+          }}
         >
           {company.name}
         </Typography>
@@ -71,21 +96,30 @@ function SiteHeader() {
 
   return (
     <>
+      {/* A floating, frosted pill rather than a full-width bar: the page's
+          soft background shows around it, and it stays put while scrolling. */}
       <AppBar
         position="sticky"
         elevation={0}
-        sx={{
-          bgcolor: alpha('#FFFFFF', 0.88),
-          backdropFilter: 'blur(10px)',
-          borderBottom: 1,
-          borderColor: 'divider',
-          color: 'text.primary',
-        }}
+        sx={{ bgcolor: 'transparent', color: 'text.primary', top: 0, pt: { xs: 1.5, md: 2 } }}
       >
-        <Container maxWidth="lg" disableGutters>
-          <Toolbar sx={{ minHeight: { xs: 64, md: 72 }, px: { xs: 2, md: 3 }, gap: 2 }}>
+        <Container maxWidth="lg">
+          <Toolbar
+            disableGutters
+            sx={{
+              minHeight: { xs: 60, md: 64 },
+              px: { xs: 1.5, md: 2.5 },
+              gap: 2,
+              borderRadius: '18px',
+              bgcolor: alpha('#FFFFFF', 0.78),
+              backdropFilter: 'saturate(180%) blur(14px)',
+              border: 1,
+              borderColor: alpha('#E5E8EF', 0.9),
+              boxShadow: '0 4px 20px rgba(15, 23, 42, 0.05)',
+            }}
+          >
             <Box component={RouterLink} to="/home" sx={{ textDecoration: 'none' }}>
-              <BrandMark />
+              <BrandMark size={34} />
             </Box>
 
             <Box sx={{ flexGrow: 1 }} />
@@ -100,8 +134,8 @@ function SiteHeader() {
                     px: 1.75,
                     color: 'text.secondary',
                     fontWeight: 500,
-                    '&.active': { color: 'text.primary', fontWeight: 700 },
-                    '&:hover': { bgcolor: 'action.hover' },
+                    '&.active': { color: 'primary.main', fontWeight: 600, bgcolor: 'transparent' },
+                    '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
                   }}
                 >
                   {item.label}
@@ -109,16 +143,14 @@ function SiteHeader() {
               ))}
             </Stack>
 
+            <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'block' } }} />
+
             <Button
               component={RouterLink}
               to="/login"
               variant="contained"
-              sx={{
-                display: { xs: 'none', sm: 'inline-flex' },
-                px: 2.75,
-                ml: { md: 1.5 },
-                borderRadius: 999,
-              }}
+              endIcon={<ArrowForwardRoundedIcon />}
+              sx={{ display: { xs: 'none', sm: 'inline-flex' }, px: 2.25, borderRadius: '12px' }}
             >
               Sign in
             </Button>
@@ -138,7 +170,7 @@ function SiteHeader() {
         anchor="right"
         open={open}
         onClose={() => setOpen(false)}
-        slotProps={{ paper: { sx: { width: 280 } } }}
+        slotProps={{ paper: { sx: { width: 280, borderRadius: '20px 0 0 20px' } } }}
       >
         <Stack
           direction="row"
@@ -170,7 +202,7 @@ function SiteHeader() {
             variant="contained"
             fullWidth
             size="large"
-            sx={{ borderRadius: 999 }}
+            sx={{ borderRadius: '12px' }}
             onClick={() => setOpen(false)}
           >
             Sign in
@@ -312,9 +344,12 @@ export default function SiteLayout() {
   }, [pathname, hash]);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'background.default' }}>
       <SiteHeader />
-      <Box component="main" sx={{ flexGrow: 1 }}>
+      <Box
+        component="main"
+        sx={{ flexGrow: 1, mt: { xs: `-${HEADER_OFFSET.xs}px`, md: `-${HEADER_OFFSET.md}px` } }}
+      >
         <Outlet />
       </Box>
       <SiteFooter />

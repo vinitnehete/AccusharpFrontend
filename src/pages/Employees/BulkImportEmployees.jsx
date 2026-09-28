@@ -143,7 +143,7 @@ export default function BulkImportEmployees() {
               exact figures instead (e.g. migrating known values from an existing payroll system).
               Filling in only some of the four fails that row.
             </Alert>
-            <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
+            <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
               <CsvFileField value={file} onChange={setFile} />
               <Button
                 size="small"

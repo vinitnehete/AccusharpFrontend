@@ -5,7 +5,9 @@ import CardContent from '@mui/material/CardContent';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
+import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
+import Avatar from '@mui/material/Avatar';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -13,12 +15,15 @@ import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
+import { alpha } from '@mui/material/styles';
 import PrintRoundedIcon from '@mui/icons-material/PrintRounded';
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import PageHeader from '../../components/PageHeader';
 import EmployeePicker from '../../components/EmployeePicker';
 import MoneyText from '../../components/MoneyText';
+import CardLabel from '../../components/CardLabel';
+import { initialsOf } from '../../layout/shell';
 import salarySlipsApi from '../../api/salarySlips';
 
 export default function SalarySlip({ fixedEmployeeId }) {
@@ -105,88 +110,112 @@ export default function SalarySlip({ fixedEmployeeId }) {
         </Alert>
       ) : (
         slip && (
-          <Card sx={{ maxWidth: 720 }}>
-            <CardContent>
-              <Stack sx={{ textAlign: 'center', mb: 2 }}>
+          <Card sx={{ maxWidth: 760, overflow: 'hidden' }}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              sx={{
+                justifyContent: 'space-between',
+                alignItems: { sm: 'center' },
+                px: { xs: 2.5, sm: 3 },
+                py: 2,
+                bgcolor: 'surfaceAlt',
+                borderBottom: 1,
+                borderColor: 'divider',
+              }}
+            >
+              <Box>
                 <Typography variant="h6">{slip.companyName}</Typography>
                 <Typography variant="body2" color="text.secondary">
                   Salary Slip — {slip.period}
                 </Typography>
+              </Box>
+              <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                <Chip
+                  size="small"
+                  label={`Payable days: ${slip.attendance?.payableDays} / ${slip.attendance?.workingDays}`}
+                />
+                <Chip size="small" label={`LOP days: ${slip.attendance?.lopDays}`} />
               </Stack>
-              <Grid container spacing={1} sx={{ mb: 2 }}>
-                <Grid size={6}>
-                  <Typography variant="body2">
-                    <strong>{slip.employeeName}</strong> ({slip.employeeCode})
+            </Stack>
+
+            <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2.5 }}>
+                <Avatar sx={{ width: 40, height: 40, fontSize: 14, bgcolor: '#EEF1F5', color: 'text.primary' }}>
+                  {initialsOf(slip.employeeName)}
+                </Avatar>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="subtitle1" noWrap>
+                    {slip.employeeName}{' '}
+                    <Box component="span" sx={{ color: 'text.secondary', fontWeight: 400 }}>
+                      ({slip.employeeCode})
+                    </Box>
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" noWrap>
                     {slip.departmentName} — {slip.designationName}
                   </Typography>
-                </Grid>
-                <Grid size={6} sx={{ textAlign: 'right' }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Payable days: {slip.attendance?.payableDays} / {slip.attendance?.workingDays}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    LOP days: {slip.attendance?.lopDays}
-                  </Typography>
-                </Grid>
-              </Grid>
-              <Divider sx={{ mb: 2 }} />
+                </Box>
+              </Stack>
+
               <Grid container spacing={2}>
-                <Grid size={6}>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    Earnings
-                  </Typography>
-                  <Table size="small">
-                    <TableBody>
-                      {slip.earnings?.map((line) => (
-                        <TableRow key={line.label}>
-                          <TableCell sx={{ border: 0, pl: 0 }}>{line.label}</TableCell>
-                          <TableCell sx={{ border: 0, pr: 0 }} align="right">
-                            <MoneyText value={line.amount} />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow>
-                        <TableCell sx={{ borderBottom: 0, pl: 0, fontWeight: 700 }}>Total</TableCell>
-                        <TableCell sx={{ borderBottom: 0, pr: 0, fontWeight: 700 }} align="right">
-                          <MoneyText value={slip.totalEarnings} />
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </Grid>
-                <Grid size={6}>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    Deductions
-                  </Typography>
-                  <Table size="small">
-                    <TableBody>
-                      {slip.deductions?.map((line) => (
-                        <TableRow key={line.label}>
-                          <TableCell sx={{ border: 0, pl: 0 }}>{line.label}</TableCell>
-                          <TableCell sx={{ border: 0, pr: 0 }} align="right">
-                            <MoneyText value={line.amount} />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow>
-                        <TableCell sx={{ borderBottom: 0, pl: 0, fontWeight: 700 }}>Total</TableCell>
-                        <TableCell sx={{ borderBottom: 0, pr: 0, fontWeight: 700 }} align="right">
-                          <MoneyText value={slip.totalDeductions} />
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </Grid>
+                {[
+                  { title: 'Earnings', lines: slip.earnings, total: slip.totalEarnings },
+                  { title: 'Deductions', lines: slip.deductions, total: slip.totalDeductions },
+                ].map((block) => (
+                  <Grid key={block.title} size={{ xs: 12, sm: 6 }}>
+                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: '12px', p: 2, height: '100%' }}>
+                      <CardLabel sx={{ mb: 1 }}>{block.title}</CardLabel>
+                      <Table size="small">
+                        <TableBody>
+                          {block.lines?.map((line) => (
+                            <TableRow key={line.label}>
+                              <TableCell sx={{ pl: 0, color: 'text.secondary' }}>{line.label}</TableCell>
+                              <TableCell sx={{ pr: 0 }} align="right" className="tabular-nums">
+                                <MoneyText value={line.amount} />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow>
+                            <TableCell sx={{ borderBottom: 0, pl: 0, fontWeight: 700 }}>Total</TableCell>
+                            <TableCell sx={{ borderBottom: 0, pr: 0, fontWeight: 700 }} align="right">
+                              <MoneyText value={block.total} />
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </Box>
+                  </Grid>
+                ))}
               </Grid>
-              <Divider sx={{ my: 2 }} />
-              <Stack sx={{ alignItems: 'flex-end' }}>
-                <Typography variant="h6">
-                  Net pay: <MoneyText value={slip.netSalary} />
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                  {slip.netSalaryInWords}
+
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
+                sx={{
+                  mt: 2.5,
+                  px: 2.5,
+                  py: 2,
+                  borderRadius: '12px',
+                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.06),
+                  border: 1,
+                  borderColor: (theme) => alpha(theme.palette.primary.main, 0.16),
+                  justifyContent: 'space-between',
+                  alignItems: { sm: 'center' },
+                }}
+              >
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Net pay
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                    {slip.netSalaryInWords}
+                  </Typography>
+                </Box>
+                <Typography
+                  className="tabular-nums"
+                  sx={{ fontSize: '1.625rem', fontWeight: 600, letterSpacing: '-0.02em', color: 'primary.dark' }}
+                >
+                  <MoneyText value={slip.netSalary} />
                 </Typography>
               </Stack>
             </CardContent>

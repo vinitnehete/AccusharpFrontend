@@ -74,7 +74,7 @@ export default function BulkImportCsv() {
               Expected header (case-insensitive, any order): <code>{TEMPLATE_COLUMNS.join(', ')}</code>. Only{' '}
               <code>weekOff</code> is optional (defaults to <code>false</code>).
             </Alert>
-            <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
+            <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
               <CsvFileField value={file} onChange={setFile} />
               <Button
                 size="small"

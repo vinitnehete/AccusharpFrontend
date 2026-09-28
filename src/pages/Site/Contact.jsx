@@ -158,7 +158,7 @@ export default function Contact() {
                       />
                     </Grid>
                     <Grid size={12}>
-                      <Button type="submit" variant="contained" size="large" sx={{ px: 4, borderRadius: 999 }}>
+                      <Button type="submit" variant="contained" size="large" sx={{ px: 4, borderRadius: '12px' }}>
                         Send enquiry
                       </Button>
                     </Grid>
