@@ -140,7 +140,7 @@ function PreviewPanel({ draft, existingRules, disabled }) {
 
       {result && (
         <Box sx={{ mt: 2 }}>
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', mb: 1.5 }}>
             <Chip size="small" label={`${result.employeesEvaluated} employee(s) checked`} />
             <Chip
               size="small"
@@ -200,7 +200,9 @@ function PreviewPanel({ draft, existingRules, disabled }) {
   );
 }
 
-export default function PolicyRuleDialog({ open, basedOn, existingRules, saving, onClose, onSubmit }) {
+// `preset` ({ ruleType, scope }) opens a new rule already on that type - the
+// type is then fixed, as it is when changing an existing rule.
+export default function PolicyRuleDialog({ open, basedOn, preset, existingRules, saving, onClose, onSubmit }) {
   const [ruleType, setRuleType] = useState('LATE_ARRIVAL');
   const [scope, setScope] = useState('CATEGORY');
   const [scopeRef, setScopeRef] = useState('');
@@ -239,15 +241,16 @@ export default function PolicyRuleDialog({ open, basedOn, existingRules, saving,
       setEnabled(basedOn.enabled);
       setNotes('');
     } else {
-      setRuleType('LATE_ARRIVAL');
-      setScope('CATEGORY');
+      const type = preset?.ruleType || 'LATE_ARRIVAL';
+      setRuleType(type);
+      setScope(preset?.scope || 'CATEGORY');
       setScopeRef('');
-      setParams(defaultParamsFor('LATE_ARRIVAL'));
+      setParams(defaultParamsFor(type));
       setEnabled(true);
       setNotes('');
     }
     setEffectiveFrom(dayjs().add(1, 'month').startOf('month'));
-  }, [open, basedOn]);
+  }, [open, basedOn, preset?.ruleType, preset?.scope]);
 
   const entry = RULE_CATALOG[ruleType];
   const scopeMeta = RULE_SCOPES.find((s) => s.value === scope) || RULE_SCOPES[0];
@@ -303,7 +306,7 @@ export default function PolicyRuleDialog({ open, basedOn, existingRules, saving,
           size="small"
           label="Rule"
           value={ruleType}
-          disabled={!!basedOn}
+          disabled={!!basedOn || !!preset}
           onChange={(e) => changeRuleType(e.target.value)}
         >
           {RULE_TYPES.map((t) => (
@@ -524,7 +527,7 @@ export default function PolicyRuleDialog({ open, basedOn, existingRules, saving,
               placeholder="Why this changed, and who asked for it"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              inputProps={{ maxLength: 500 }}
+              slotProps={{ htmlInput: { maxLength: 500 } }}
             />
           </Grid>
           <Grid size={{ xs: 12 }}>

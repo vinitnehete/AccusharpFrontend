@@ -26,6 +26,7 @@ export const RULE_TYPES = [
   'OVERTIME',
   'EARLY_EXIT_BUDGET',
   'LATE_MARK_ACCUMULATION',
+  'SANDWICH_LEAVE',
 ];
 
 // Who a rule applies to, most specific first. The order is the backend's
@@ -72,7 +73,7 @@ export const RULE_SCOPES = [
     // Worth being exact about: the backend validates this against the built-in
     // EmployeeStatus enum, not against the configurable Employment Types master.
     help: 'Everyone on this built-in status - Permanent, Day wise, Contract or Intern. '
-      + 'This is the status on the employee record, not the Employment Type master under Masters.',
+      + 'This is the status on the employee record, not the Employment types under Rules.',
   },
   {
     value: 'COMPANY',
@@ -137,7 +138,7 @@ export const RULE_CATALOG = {
     evaluationScope: 'DAY',
     summary: 'Sets how many hours earn a full day and a half day, for this group only.',
     detail:
-      'Replaces the company-wide percentages under Masters → Attendance Rule for the people this rule '
+      'Replaces the company-wide percentages under Rules → Attendance thresholds for the people this rule '
       + 'covers. You can express the cut-offs as a share of the shift, or as plain minutes - '
       + '"under 4 hours is a half day" is not a percentage of anything, and would quietly mean different '
       + 'things on an 8-hour and a 12-hour shift.',
@@ -418,6 +419,32 @@ export const RULE_CATALOG = {
     describe: (p) =>
       `Every ${p.occurrencesPerPenalty} days late by ${p.minimumLateMinutes}+ min costs ${
         p.penaltyLopDays} unpaid day(s)`,
+  },
+
+  SANDWICH_LEAVE: {
+    label: 'Sandwich leave (public holidays)',
+    evaluationScope: 'MONTH',
+    summary: 'A public holiday is paid only to someone who works the working day before it or after it.',
+    detail:
+      'Weekly offs next to the holiday are looked past: the days that decide are the nearest working days '
+      + 'on each side. When both are leave or absence, the holiday is unpaid. To take the long weekend and be '
+      + 'paid, the employee applies one leave through the holiday - 14th to 16th August - and the holiday is '
+      + 'used as a day of leave. A half day or a single punch counts as working.',
+    effect:
+      'Adds unpaid (LOP) days to the monthly summary: the holiday, and the paid leave next to it if you choose. '
+      + 'Leave balances are not changed.',
+    defaults: { adjacentLeaveUnpaid: true },
+    fields: [
+      {
+        name: 'adjacentLeaveUnpaid',
+        label: 'Paid leave on the working days next to the holiday is also unpaid',
+        type: 'boolean',
+        help: 'Switch off to take away only the holiday and keep that leave paid.',
+      },
+    ],
+    describe: (p) =>
+      `A public holiday is unpaid when the working day before and after it are both not worked - ${
+        p.adjacentLeaveUnpaid ? 'and the paid leave next to it too' : 'only the holiday, the leave stays paid'}`,
   },
 };
 

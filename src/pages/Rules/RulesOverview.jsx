@@ -26,7 +26,7 @@ import shiftsApi from '../../api/shifts';
 import holidaysApi from '../../api/holidays';
 import { useAuth } from '../../context/AuthContext';
 import { labelize } from '../../constants/enums';
-import { ruleLabel } from '../../constants/attendancePolicy';
+import { describeRule, ruleLabel } from '../../constants/attendancePolicy';
 import { SCOPE_LABEL, needsScopeRef } from '../../constants/scopes';
 import { visibleRuleAreas } from './rulesCatalog';
 import {
@@ -109,6 +109,14 @@ const LOADERS = {
           text: `${plural(on.length, 'rule')} in force`,
           items: on.map((rule) => `${ruleLabel(rule.ruleType)} - ${who(rule)}`),
         };
+    }),
+
+  'sandwich-leave': () =>
+    attendancePolicyApi.list().then((rules) => {
+      const on = inForce(rules.filter((rule) => rule.ruleType === 'SANDWICH_LEAVE'), (rule) => `${rule.scope}|${rule.scopeRef}`);
+      return on.length === 0
+        ? { status: 'default', text: 'Off - every public holiday is paid' }
+        : { status: 'set', text: 'On', items: on.map((rule) => `${who(rule)}: ${describeRule(rule.ruleType, rule.params)}`) };
     }),
 
   'work-policies': () =>

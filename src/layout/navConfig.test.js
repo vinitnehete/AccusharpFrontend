@@ -31,9 +31,11 @@ describe('sidebar visibility', () => {
     const shown = labels(visibleNav(navConfig, session('HR')));
 
     expect(shown).toEqual(expect.arrayContaining([
-      'Employees', 'Shifts', 'Holidays', 'All Leaves', 'Attendance Console', 'Payroll', 'Salary Slips',
-      'Masters', 'Rules', 'Reports',
+      'Employees', 'All Leaves', 'Attendance Console', 'Payroll', 'Salary Slips', 'Masters', 'Rules', 'Reports',
     ]));
+    // Shifts and holidays are rules: they are tabs on the Rules page now, not sidebar items.
+    expect(shown).not.toContain('Shifts');
+    expect(shown).not.toContain('Holidays');
     expect(shown).not.toContain('Custom Roles');
     expect(shown).not.toContain('Audit Log');
   });

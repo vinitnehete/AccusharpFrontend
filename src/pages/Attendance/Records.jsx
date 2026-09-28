@@ -19,6 +19,7 @@ import MenuItem from '@mui/material/MenuItem';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { useSnackbar } from 'notistack';
@@ -32,6 +33,8 @@ import { ATTENDANCE_STATUS, ATTENDANCE_STATUS_COLOR } from '../../constants/enum
 import { useActingAs } from '../../context/ActingAsContext';
 import { formatHours } from '../../utils/hours';
 import { useAuth } from '../../context/AuthContext';
+import { downloadCsv } from '../../utils/csv';
+import { RECORD_CSV_COLUMNS, recordsCsvFilename } from './recordsExport';
 
 function CorrectionDialog({ open, record, userId, onClose, onSaved }) {
   const { enqueueSnackbar } = useSnackbar();
@@ -390,6 +393,15 @@ export default function Records() {
                 Refresh summaries
               </Button>
             )}
+            <Button
+              startIcon={<DownloadRoundedIcon />}
+              onClick={() =>
+                downloadCsv(recordsCsvFilename(userId, month.format('YYYY-MM')), RECORD_CSV_COLUMNS, rows)
+              }
+              disabled={!userId || !month || rows.length === 0 || loading}
+            >
+              Export CSV
+            </Button>
           </>
         }
       />

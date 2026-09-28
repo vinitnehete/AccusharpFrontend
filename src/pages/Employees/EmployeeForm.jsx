@@ -501,7 +501,7 @@ export default function EmployeeForm() {
               </TextField>
             </Grid>
             {/* Optional, and only offered once a company has defined types
-                under Masters -> Employment Types. Left blank, payroll keeps the
+                under Rules -> Employment types. Left blank, payroll keeps the
                 built-in behaviour of the Employment status above, which is what
                 every existing employee has. */}
             {employmentTypes.length > 0 && (

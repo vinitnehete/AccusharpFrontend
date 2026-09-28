@@ -1,4 +1,4 @@
-import { RULE_AREAS, visibleRuleAreas } from './rulesCatalog';
+import { LEGACY_RULE_PATHS, RULE_AREAS, visibleRuleAreas } from './rulesCatalog';
 import { ROLE_PERMISSIONS } from '../../constants/permissions';
 
 const keys = (areas) => areas.map((area) => area.key);
@@ -31,5 +31,23 @@ describe('the rule areas the Rules page offers', () => {
     const permissions = [...ROLE_PERMISSIONS.EMPLOYEE, 'SALARY_RULE_READ', 'WORK_POLICY_READ'];
 
     expect(keys(visibleRuleAreas(permissions))).toEqual(['salary', 'work-policies']);
+  });
+
+  it('offers the sandwich leave rule as its own tab, to whoever may set attendance policy', () => {
+    const sandwich = RULE_AREAS.find((area) => area.key === 'sandwich-leave');
+
+    expect(sandwich.path).toBe('/rules/sandwich-leave');
+    expect(keys(visibleRuleAreas(['ATTENDANCE_POLICY_READ']))).toEqual(['attendance-policy', 'sandwich-leave']);
+  });
+
+  it('sends every old location of a rule screen to its tab on the Rules page', () => {
+    const tabs = [...RULE_AREAS.map((area) => area.path), '/rules/check'];
+
+    expect(Object.keys(LEGACY_RULE_PATHS).sort()).toEqual([
+      '/attendance/policy', '/attendance/policy-check', '/holidays', '/leave/rules',
+      '/masters/attendance-rule', '/masters/employment-types', '/masters/salary-rule',
+      '/masters/work-policies', '/shifts',
+    ]);
+    Object.values(LEGACY_RULE_PATHS).forEach((to) => expect(tabs).toContain(to));
   });
 });
