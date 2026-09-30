@@ -25,7 +25,7 @@ export default function Services() {
             to="/contact"
             variant="contained"
             size="large"
-            sx={{ px: 4, borderRadius: 999 }}
+            sx={{ px: 4, borderRadius: '12px' }}
           >
             Talk to us
           </Button>
@@ -35,7 +35,7 @@ export default function Services() {
             variant="outlined"
             size="large"
             endIcon={<ArrowForwardRoundedIcon />}
-            sx={{ px: 3.5, borderRadius: 999 }}
+            sx={{ px: 3.5, borderRadius: '12px' }}
           >
             Sign in
           </Button>

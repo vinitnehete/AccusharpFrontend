@@ -162,7 +162,7 @@ export default function PolicyEffective() {
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
                 {data.userId} on {dayjs(data.date).format('DD MMM YYYY')}
               </Typography>
-              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 2 }}>
+              <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', mb: 2 }}>
                 {groups.length ? (
                   groups.map(([label, value]) => (
                     <Chip key={label} size="small" variant="outlined" label={`${label}: ${value}`} />
@@ -176,7 +176,7 @@ export default function PolicyEffective() {
               </Stack>
 
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                Company-wide settings these rules sit on top of (Masters → Attendance Rule):
+                Company-wide settings these rules sit on top of (Rules → Attendance thresholds):
               </Typography>
               <Grid container spacing={1}>
                 <Grid size={{ xs: 12, sm: 4 }}>

@@ -48,6 +48,13 @@ const AREAS = [
     question: 'Late marks, short hours, missed punches and overtime - per group',
   },
   {
+    key: 'sandwich-leave',
+    label: 'Sandwich leave',
+    path: '/rules/sandwich-leave',
+    access: ACCESS.attendancePolicy,
+    question: 'Whether a public holiday is paid to someone on leave or absent on both sides of it',
+  },
+  {
     key: 'work-policies',
     label: 'Work policies',
     path: '/rules/work-policies',
@@ -62,6 +69,20 @@ const AREAS = [
     question: 'Who gets which leave, how it accrues and what carries into next year',
   },
 ];
+
+// Where each rule screen lived before this page became its only home. App.js
+// redirects them, so old bookmarks and links still land on the right tab.
+export const LEGACY_RULE_PATHS = {
+  '/masters/salary-rule': '/rules/salary',
+  '/masters/employment-types': '/rules/employment-types',
+  '/shifts': '/rules/shifts',
+  '/holidays': '/rules/holidays',
+  '/masters/attendance-rule': '/rules/attendance',
+  '/attendance/policy': '/rules/attendance-policy',
+  '/attendance/policy-check': '/rules/check',
+  '/masters/work-policies': '/rules/work-policies',
+  '/leave/rules': '/rules/leave',
+};
 
 // The step number is the area's place in the setup order above.
 export const RULE_AREAS = AREAS.map((area, index) => ({ ...area, step: index + 1 }));

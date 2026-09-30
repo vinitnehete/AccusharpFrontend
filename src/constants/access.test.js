@@ -36,4 +36,11 @@ describe('area access rules', () => {
   it('lets nobody in without a session', () => {
     expect(isAllowed(ACCESS.reports, { role: null, permissions: [] })).toBe(false);
   });
+
+  it("opens an employee's profile to their supervisor, but not the employee admin screens", () => {
+    expect(isAllowed(ACCESS.employeeProfile, session('SUPERVISOR'))).toBe(true);
+    expect(isAllowed(ACCESS.employeeProfile, session('HR'))).toBe(true);
+    expect(isAllowed(ACCESS.employees, session('SUPERVISOR'))).toBe(false);
+    expect(isAllowed(ACCESS.employeeProfile, session('EMPLOYEE'))).toBe(false);
+  });
 });

@@ -46,7 +46,7 @@ function LeaveCard({ leave, onCancel }) {
       <CardContent>
         <Stack direction="row" spacing={2} sx={{ alignItems: 'flex-start' }}>
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5, flexWrap: 'wrap' }}>
+            <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', mb: 0.5, flexWrap: 'wrap' }}>
               <Typography variant="subtitle1">{labelize(leave.leaveType)}</Typography>
               <StatusChip value={leave.status} colorMap={LEAVE_STATUS_COLOR} />
             </Stack>

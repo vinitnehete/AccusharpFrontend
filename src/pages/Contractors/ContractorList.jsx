@@ -14,6 +14,7 @@ import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
 import { useSnackbar } from 'notistack';
 import PageHeader from '../../components/PageHeader';
 import DataTable from '../../components/DataTable';
+import FilterBar from '../../components/FilterBar';
 import StatusChip from '../../components/StatusChip';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import ContractorFormDialog from './ContractorFormDialog';
@@ -196,7 +197,7 @@ export default function ContractorList() {
         }
       />
 
-      <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap' }}>
+      <FilterBar>
         <TextField
           size="small"
           label="Search"
@@ -217,7 +218,7 @@ export default function ContractorList() {
           <MenuItem value="ACTIVE">Active</MenuItem>
           <MenuItem value="INACTIVE">Inactive</MenuItem>
         </TextField>
-      </Stack>
+      </FilterBar>
 
       <DataTable
         rows={filtered}

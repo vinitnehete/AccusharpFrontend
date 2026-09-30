@@ -116,7 +116,7 @@ function EmploymentTypeDialog({ open, editing, saving, onClose, onSubmit }) {
       typeName: form.typeName.trim(),
       payBasis: form.payBasis,
       // Null, not 0 or '' - null means "use the company's Day-wise days in
-      // month from Masters -> Salary Rule", which is where that number lives.
+      // month from Rules -> Salary", which is where that number lives.
       payableDaysCap:
         perAttendedDay && form.payableDaysCap !== '' ? Number(form.payableDaysCap) : null,
       lopApplies: perAttendedDay ? false : form.lopApplies,
@@ -201,7 +201,7 @@ function EmploymentTypeDialog({ open, editing, saving, onClose, onSubmit }) {
               }}
               helperText={
                 perAttendedDay
-                  ? 'Leave blank to use the company’s Day-wise days in month (Masters → Salary Rule, 26 by default). Set it only to give this type its own base. 1–31.'
+                  ? 'Leave blank to use the company’s Day-wise days in month (Rules → Salary, 26 by default). Set it only to give this type its own base. 1–31.'
                   : 'Only used when pay is per day attended — a monthly salary prorates against the month’s own length.'
               }
             />
@@ -407,7 +407,7 @@ export default function EmploymentTypes() {
         if (params.row.paidLeaveEarnsOvertime) chips.push('Leave earns OT');
         if (params.row.autoRosterDefaultShift) chips.push('Auto-roster');
         return (
-          <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+          <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
             {chips.map((c) => (
               <Chip key={c} label={c} size="small" variant="outlined" />
             ))}

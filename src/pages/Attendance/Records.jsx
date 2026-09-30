@@ -19,6 +19,7 @@ import MenuItem from '@mui/material/MenuItem';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { useSnackbar } from 'notistack';
@@ -32,6 +33,9 @@ import { ATTENDANCE_STATUS, ATTENDANCE_STATUS_COLOR } from '../../constants/enum
 import { useActingAs } from '../../context/ActingAsContext';
 import { formatHours } from '../../utils/hours';
 import { useAuth } from '../../context/AuthContext';
+import { downloadCsv } from '../../utils/csv';
+import { RECORD_CSV_COLUMNS, recordsCsvFilename } from './recordsExport';
+import { sandwichMark } from './sandwichMark';
 
 function CorrectionDialog({ open, record, userId, onClose, onSaved }) {
   const { enqueueSnackbar } = useSnackbar();
@@ -245,6 +249,7 @@ export default function Records() {
   const [userId, setUserId] = useState(null);
   const [month, setMonth] = useState(dayjs());
   const [rows, setRows] = useState([]);
+  const [sandwich, setSandwich] = useState(null);
   const [loading, setLoading] = useState(false);
   const [correcting, setCorrecting] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -252,6 +257,7 @@ export default function Records() {
   const load = () => {
     if (!userId || !month) {
       setRows([]);
+      setSandwich(null);
       return;
     }
     setLoading(true);
@@ -260,6 +266,11 @@ export default function Records() {
       .then(setRows)
       .catch(() => setRows([]))
       .finally(() => setLoading(false));
+    // The days a sandwich rule made unpaid - their own status does not change.
+    attendanceApi
+      .monthly(userId, month.format('YYYY-MM'))
+      .then((summary) => setSandwich(sandwichMark(summary.sandwich)))
+      .catch(() => setSandwich(null));
   };
 
   useEffect(load, [userId, month]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -315,8 +326,15 @@ export default function Records() {
     {
       field: 'status',
       headerName: 'Status',
-      width: 140,
-      renderCell: (params) => <StatusChip value={params.value} colorMap={ATTENDANCE_STATUS_COLOR} />,
+      width: 210,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', height: '100%' }}>
+          <StatusChip value={params.value} colorMap={ATTENDANCE_STATUS_COLOR} />
+          {sandwich?.dates.has(params.row.attendanceDate) && (
+            <Chip size="small" color="warning" variant="outlined" label="Unpaid (sandwich)" />
+          )}
+        </Stack>
+      ),
     },
     {
       field: 'recordStatus',
@@ -390,6 +408,15 @@ export default function Records() {
                 Refresh summaries
               </Button>
             )}
+            <Button
+              startIcon={<DownloadRoundedIcon />}
+              onClick={() =>
+                downloadCsv(recordsCsvFilename(userId, month.format('YYYY-MM')), RECORD_CSV_COLUMNS, rows)
+              }
+              disabled={!userId || !month || rows.length === 0 || loading}
+            >
+              Export CSV
+            </Button>
           </>
         }
       />
@@ -405,6 +432,11 @@ export default function Records() {
             <Alert severity="warning" sx={{ mb: 2 }} data-testid="attendance-warning">
               {rows.filter((r) => r.status === 'INVALID_PUNCH').length} day(s) have a single punch
               only — correct them below before payroll is generated.
+            </Alert>
+          )}
+          {sandwich && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              {sandwich.text}
             </Alert>
           )}
           <DataTable rows={rows} columns={columns} loading={loading} height={560} density="compact" />

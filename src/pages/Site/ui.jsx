@@ -29,6 +29,8 @@ import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import RuleRoundedIcon from '@mui/icons-material/RuleRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 import LayersRoundedIcon from '@mui/icons-material/LayersRounded';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import SoftGlow from '../../components/SoftGlow';
 
 // siteContent.js stores an icon *name* rather than a component, so the copy
 // file stays plain data that anyone can edit without touching imports.
@@ -126,7 +128,7 @@ export function IconTile({ name, size = 44 }) {
       sx={(theme) => ({
         width: size,
         height: size,
-        borderRadius: 2.5,
+        borderRadius: '12px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -145,10 +147,11 @@ export function FeatureCard({ icon, title, description, points }) {
     <Card
       sx={{
         height: '100%',
-        transition: 'box-shadow 160ms ease, border-color 160ms ease',
+        transition: 'box-shadow 200ms ease, border-color 200ms ease, transform 200ms ease',
         '&:hover': {
-          borderColor: 'primary.light',
-          boxShadow: '0 6px 16px rgba(16, 24, 40, 0.07)',
+          borderColor: alpha('#2563EB', 0.3),
+          boxShadow: '0 12px 28px rgba(30, 64, 175, 0.08)',
+          transform: 'translateY(-2px)',
         },
       }}
     >
@@ -193,54 +196,64 @@ export function FeatureCard({ icon, title, description, points }) {
   );
 }
 
-/** Closing call-to-action band, reused at the bottom of every public page. */
+/** Closing call-to-action, reused at the bottom of every public page: a soft
+    blue card rather than a dark band, so it doesn't merge into the footer. */
 export function CtaBand({ title, subtitle, primaryLabel, primaryTo, secondaryLabel, secondaryTo }) {
   return (
-    <Section tone="dark" dense>
-      <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        spacing={3}
-        sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+    <Section dense>
+      <Box
+        sx={{
+          position: 'relative',
+          overflow: 'hidden',
+          borderRadius: '28px',
+          border: 1,
+          borderColor: 'divider',
+          background: 'linear-gradient(135deg, #EEF3FE 0%, #F7F9FF 55%, #EEF0FD 100%)',
+          px: { xs: 3, md: 6 },
+          py: { xs: 4, md: 6 },
+        }}
       >
-        <Box sx={{ maxWidth: 620 }}>
-          <Typography variant="h5" sx={{ color: 'common.white' }}>
-            {title}
-          </Typography>
-          {subtitle && (
-            <Typography variant="body1" sx={{ mt: 1, color: alpha('#FFFFFF', 0.72) }}>
-              {subtitle}
+        <SoftGlow variant="band" />
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={3}
+          sx={{ position: 'relative', alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+        >
+          <Box sx={{ maxWidth: 620 }}>
+            <Typography variant="h4" component="h2">
+              {title}
             </Typography>
-          )}
-        </Box>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ flexShrink: 0 }}>
-          <Button
-            component={RouterLink}
-            to={primaryTo}
-            variant="contained"
-            size="large"
-            sx={{ px: 3.5, borderRadius: 999 }}
-          >
-            {primaryLabel}
-          </Button>
-          {secondaryLabel && (
+            {subtitle && (
+              <Typography variant="body1" color="text.secondary" sx={{ mt: 1.25 }}>
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ flexShrink: 0 }}>
             <Button
               component={RouterLink}
-              to={secondaryTo}
+              to={primaryTo}
+              variant="contained"
               size="large"
-              variant="outlined"
-              sx={{
-                px: 3.5,
-                borderRadius: 999,
-                color: 'common.white',
-                borderColor: alpha('#FFFFFF', 0.35),
-                '&:hover': { borderColor: 'common.white', bgcolor: alpha('#FFFFFF', 0.06) },
-              }}
+              endIcon={<ArrowForwardRoundedIcon />}
+              sx={{ px: 3.5, borderRadius: '12px' }}
             >
-              {secondaryLabel}
+              {primaryLabel}
             </Button>
-          )}
+            {secondaryLabel && (
+              <Button
+                component={RouterLink}
+                to={secondaryTo}
+                size="large"
+                variant="outlined"
+                sx={{ px: 3.5, borderRadius: '12px' }}
+              >
+                {secondaryLabel}
+              </Button>
+            )}
+          </Stack>
         </Stack>
-      </Stack>
+      </Box>
     </Section>
   );
 }

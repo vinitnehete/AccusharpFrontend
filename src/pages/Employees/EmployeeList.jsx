@@ -8,18 +8,19 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import UploadFileRoundedIcon from '@mui/icons-material/UploadFileRounded';
-import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import PersonOffRoundedIcon from '@mui/icons-material/PersonOffRounded';
 import { useSnackbar } from 'notistack';
 import PageHeader from '../../components/PageHeader';
 import DataTable from '../../components/DataTable';
+import FilterBar from '../../components/FilterBar';
 import StatusChip from '../../components/StatusChip';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import employeesApi from '../../api/employees';
-import { RECORD_STATUS_COLOR, ROLE_COLOR, labelize } from '../../constants/enums';
+import { RECORD_STATUS_COLOR, ROLE_COLOR } from '../../constants/enums';
 import { useActingAs } from '../../context/ActingAsContext';
 import { useAuth } from '../../context/AuthContext';
+import { personColumns, personRowProps } from './employeeColumns';
 
 export default function EmployeeList() {
   const navigate = useNavigate();
@@ -59,8 +60,7 @@ export default function EmployeeList() {
         const matchesSearch =
           !search ||
           r.employeeName?.toLowerCase().includes(search.toLowerCase()) ||
-          r.userId?.toLowerCase().includes(search.toLowerCase()) ||
-          r.employeeCode?.toLowerCase().includes(search.toLowerCase());
+          r.userId?.toLowerCase().includes(search.toLowerCase());
         const matchesDept = deptFilter === 'ALL' || r.departmentName === deptFilter;
         const matchesStatus = statusFilter === 'ALL' || r.recordStatus === statusFilter;
         return matchesSearch && matchesDept && matchesStatus;
@@ -83,57 +83,60 @@ export default function EmployeeList() {
       .finally(() => setBusy(false));
   };
 
+  // A click anywhere on the row opens the employee.
   const columns = [
-    { field: 'employeeCode', headerName: 'Code', width: 110 },
-    { field: 'employeeName', headerName: 'Name', flex: 1, minWidth: 170 },
-    { field: 'userId', headerName: 'User ID', width: 110 },
-    { field: 'departmentName', headerName: 'Department', width: 150 },
-    { field: 'designationName', headerName: 'Designation', width: 160 },
-    { field: 'categoryName', headerName: 'Category', width: 130 },
-    { field: 'supervisorName', headerName: 'Supervisor', width: 150 },
+    ...personColumns,
+    { field: 'supervisorName', headerName: 'Supervisor', flex: 1, minWidth: 120 },
     {
       field: 'role',
       headerName: 'Role',
-      width: 120,
+      width: 110,
       renderCell: (params) => <StatusChip value={params.value} colorMap={ROLE_COLOR} />,
     },
-    { field: 'status', headerName: 'Employment', width: 120, valueFormatter: (v) => labelize(v) },
     {
       field: 'recordStatus',
       headerName: 'Status',
-      width: 110,
+      width: 100,
       renderCell: (params) => <StatusChip value={params.value} colorMap={RECORD_STATUS_COLOR} />,
     },
-    {
-      field: 'actions',
-      headerName: '',
-      sortable: false,
-      filterable: false,
-      width: 130,
-      renderCell: (params) => (
-        <Stack direction="row" spacing={0.5}>
-          <Tooltip title="View">
-            <IconButton size="small" onClick={() => navigate(`/employees/${params.row.id}`)}>
-              <VisibilityRoundedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          {canUpdate && (
-            <Tooltip title="Edit">
-              <IconButton size="small" onClick={() => navigate(`/employees/${params.row.id}/edit`)}>
-                <EditRoundedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
-          {canDelete && (
-            <Tooltip title="Deactivate">
-              <IconButton size="small" onClick={() => setDeactivateTarget(params.row)}>
-                <PersonOffRoundedIcon fontSize="small" color="error" />
-              </IconButton>
-            </Tooltip>
-          )}
-        </Stack>
-      ),
-    },
+    ...(canUpdate || canDelete
+      ? [
+        {
+          field: 'actions',
+          headerName: '',
+          sortable: false,
+          filterable: false,
+          width: 90,
+          // The buttons act on their own; the click must not also open the row.
+          renderCell: ({ row }) => (
+            <Stack direction="row" spacing={0.5} onClick={(e) => e.stopPropagation()}>
+              {canUpdate && (
+                <Tooltip title="Edit">
+                  <IconButton
+                    size="small"
+                    aria-label={`Edit ${row.employeeName}`}
+                    onClick={() => navigate(`/employees/${row.id}/edit`)}
+                  >
+                    <EditRoundedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {canDelete && (
+                <Tooltip title="Deactivate">
+                  <IconButton
+                    size="small"
+                    aria-label={`Deactivate ${row.employeeName}`}
+                    onClick={() => setDeactivateTarget(row)}
+                  >
+                    <PersonOffRoundedIcon fontSize="small" color="error" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Stack>
+          ),
+        },
+      ]
+      : []),
   ];
 
   return (
@@ -177,11 +180,11 @@ export default function EmployeeList() {
           )
         }
       />
-      <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap' }}>
+      <FilterBar>
         <TextField
           size="small"
           label="Search"
-          placeholder="Name, code or user id"
+          placeholder="Name or user id"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           sx={{ minWidth: 240 }}
@@ -214,12 +217,14 @@ export default function EmployeeList() {
           <MenuItem value="ACTIVE">Active</MenuItem>
           <MenuItem value="INACTIVE">Inactive</MenuItem>
         </TextField>
-      </Stack>
+      </FilterBar>
       <DataTable
         rows={filtered}
         columns={columns}
         loading={loading}
         height={600}
+        {...personRowProps}
+        onRowClick={({ row }) => navigate(`/employees/${row.id}`)}
         data-testid="employee-table"
         emptyState={
           rows.length > 0

@@ -71,7 +71,7 @@ function Summary(summary) {
           </Grid>
         ))}
       </Grid>
-      <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
         <Chip size="small" label={`${summary.employeesWithLop} with LOP (${summary.totalLopDays} days)`} />
         <Chip size="small" label={`${summary.employeesWithOvertime} with overtime (${formatHours(summary.totalOvertimeHours)})`} />
         <Chip size="small" label={`Regular hours ${formatHours(summary.totalRegularHours)}`} />

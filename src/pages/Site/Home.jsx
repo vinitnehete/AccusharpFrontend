@@ -11,6 +11,8 @@ import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
 import { alpha } from '@mui/material/styles';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
+import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import FormatQuoteRoundedIcon from '@mui/icons-material/FormatQuoteRounded';
@@ -26,13 +28,25 @@ import {
   finalCta,
 } from '../../content/siteContent';
 import { Section, SectionHeading, FeatureCard, IconTile, CtaBand } from './ui';
+import SoftGlow from '../../components/SoftGlow';
+import { HEADER_OFFSET } from '../../layout/SiteLayout';
+import { tokens } from '../../theme/theme';
 
 // A stylised impression of the product, drawn with plain boxes rather than a
 // screenshot — no asset to keep in sync, and it renders crisply at any size.
 function ProductPreview() {
   const bars = [58, 74, 46, 88, 65, 92, 70];
   return (
-    <Card sx={{ p: { xs: 2, md: 2.5 }, boxShadow: '0 18px 40px rgba(16, 24, 40, 0.10)' }}>
+    <Card
+      sx={{
+        p: { xs: 2, md: 2.5 },
+        borderRadius: '24px',
+        borderColor: alpha('#FFFFFF', 0.9),
+        bgcolor: alpha('#FFFFFF', 0.88),
+        backdropFilter: 'blur(16px)',
+        boxShadow: '0 24px 60px rgba(30, 64, 175, 0.12), 0 2px 6px rgba(15, 23, 42, 0.04)',
+      }}
+    >
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
         <Box>
           <Typography variant="overline" color="text.secondary">
@@ -109,47 +123,50 @@ function ProductPreview() {
 
 function Hero() {
   return (
-    <Box
-      sx={(theme) => ({
-        position: 'relative',
-        overflow: 'hidden',
-        background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(
-          theme.palette.primary.main,
-          0.02
-        )} 42%, ${theme.palette.background.default} 100%)`,
-      })}
-    >
-      <Box
-        aria-hidden
-        sx={(theme) => ({
-          position: 'absolute',
-          top: -180,
-          right: -140,
-          width: 520,
-          height: 520,
-          borderRadius: '50%',
-          background: `radial-gradient(circle, ${alpha(theme.palette.primary.main, 0.16)} 0%, transparent 68%)`,
-          pointerEvents: 'none',
-        })}
-      />
-      <Container maxWidth="lg" sx={{ position: 'relative', py: { xs: 7, md: 12 } }}>
+    <Box sx={{ position: 'relative', overflow: 'hidden', bgcolor: 'background.default' }}>
+      <SoftGlow variant="hero" />
+      <Container
+        maxWidth="lg"
+        sx={{
+          position: 'relative',
+          pt: { xs: `${HEADER_OFFSET.xs + 56}px`, md: `${HEADER_OFFSET.md + 96}px` },
+          pb: { xs: 7, md: 12 },
+        }}
+      >
         <Grid container spacing={{ xs: 5, md: 6 }} sx={{ alignItems: 'center' }}>
           <Grid size={{ xs: 12, md: 6.5 }}>
             <Chip
+              icon={<AutoAwesomeRoundedIcon />}
               label={hero.eyebrow}
               size="small"
-              sx={(theme) => ({
-                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                color: 'primary.dark',
+              sx={{
                 mb: 2.5,
-              })}
+                height: 30,
+                px: 0.5,
+                bgcolor: alpha('#FFFFFF', 0.75),
+                border: 1,
+                borderColor: 'divider',
+                color: 'primary.dark',
+                backdropFilter: 'blur(8px)',
+                '& .MuiChip-icon': { color: 'primary.main', fontSize: 16 },
+              }}
             />
             <Typography
               variant="h1"
               sx={{ fontSize: { xs: '2.25rem', sm: '2.75rem', md: '3.25rem' } }}
             >
               {hero.title}{' '}
-              <Box component="span" sx={{ color: 'primary.main' }}>
+              <Box
+                component="span"
+                sx={{
+                  display: { md: 'block' },
+                  fontFamily: tokens.font.serif,
+                  fontStyle: 'italic',
+                  fontWeight: 400,
+                  letterSpacing: '-0.02em',
+                  color: 'primary.dark',
+                }}
+              >
                 {hero.titleAccent}
               </Box>
             </Typography>
@@ -167,17 +184,23 @@ function Hero() {
                 to="/login"
                 variant="contained"
                 size="large"
-                sx={{ px: 4, borderRadius: 999 }}
+                endIcon={<ArrowForwardRoundedIcon />}
+                sx={{ px: 3.5, borderRadius: '12px' }}
               >
                 Sign in
               </Button>
               <Button
                 component={RouterLink}
                 to="/services"
-                variant="outlined"
                 size="large"
-                endIcon={<ArrowForwardRoundedIcon />}
-                sx={{ px: 3.5, borderRadius: 999 }}
+                endIcon={<ArrowDownwardRoundedIcon />}
+                sx={{
+                  px: 3,
+                  borderRadius: '12px',
+                  color: 'text.primary',
+                  bgcolor: alpha('#E7EBF2', 0.8),
+                  '&:hover': { bgcolor: '#DDE2EB' },
+                }}
               >
                 What we do
               </Button>

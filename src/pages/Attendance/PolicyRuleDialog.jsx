@@ -24,6 +24,7 @@ import ScienceRoundedIcon from '@mui/icons-material/ScienceRounded';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useSnackbar } from 'notistack';
 import EmployeePicker from '../../components/EmployeePicker';
+import EmployeeMultiPicker from '../../components/EmployeeMultiPicker';
 import attendancePolicyApi from '../../api/attendancePolicy';
 import categoriesApi from '../../api/categories';
 import departmentsApi from '../../api/departments';
@@ -36,6 +37,7 @@ import {
   RULE_TYPES,
   dangerFor,
   defaultParamsFor,
+  expandDraft,
   toParamsPayload,
   toPreviewRule,
   validateParams,
@@ -89,11 +91,11 @@ function PreviewPanel({ draft, existingRules, disabled }) {
   // the honest test is "everything currently in force, with this rule added or
   // replacing its predecessor" - not the draft on its own.
   const rulesForTest = useMemo(() => {
-    const draftKey = `${draft.scope}|${draft.scopeRef}|${draft.ruleType}`;
-    const others = existingRules
-      .filter((r) => `${r.scope}|${r.scopeRef}|${r.ruleType}` !== draftKey)
-      .map(toPreviewRule);
-    return [...others, draft];
+    const drafts = expandDraft(draft);
+    const key = (r) => `${r.scope}|${r.scopeRef}|${r.ruleType}`;
+    const replaced = new Set(drafts.map(key));
+    const others = existingRules.filter((r) => !replaced.has(key(r))).map(toPreviewRule);
+    return [...others, ...drafts];
   }, [draft, existingRules]);
 
   const run = () => {
@@ -140,7 +142,7 @@ function PreviewPanel({ draft, existingRules, disabled }) {
 
       {result && (
         <Box sx={{ mt: 2 }}>
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', mb: 1.5 }}>
             <Chip size="small" label={`${result.employeesEvaluated} employee(s) checked`} />
             <Chip
               size="small"
@@ -200,10 +202,14 @@ function PreviewPanel({ draft, existingRules, disabled }) {
   );
 }
 
-export default function PolicyRuleDialog({ open, basedOn, existingRules, saving, onClose, onSubmit }) {
+// `preset` ({ ruleType, scope }) opens a new rule already on that type - the
+// type is then fixed, as it is when changing an existing rule.
+export default function PolicyRuleDialog({ open, basedOn, preset, existingRules, saving, onClose, onSubmit }) {
   const [ruleType, setRuleType] = useState('LATE_ARRIVAL');
   const [scope, setScope] = useState('CATEGORY');
   const [scopeRef, setScopeRef] = useState('');
+  // A new rule for employees can name several at once - one version each.
+  const [scopeRefs, setScopeRefs] = useState([]);
   const [params, setParams] = useState(() => defaultParamsFor('LATE_ARRIVAL'));
   const [effectiveFrom, setEffectiveFrom] = useState(() => dayjs().add(1, 'month').startOf('month'));
   const [enabled, setEnabled] = useState(true);
@@ -239,34 +245,39 @@ export default function PolicyRuleDialog({ open, basedOn, existingRules, saving,
       setEnabled(basedOn.enabled);
       setNotes('');
     } else {
-      setRuleType('LATE_ARRIVAL');
-      setScope('CATEGORY');
+      const type = preset?.ruleType || 'LATE_ARRIVAL';
+      setRuleType(type);
+      setScope(preset?.scope || 'CATEGORY');
       setScopeRef('');
-      setParams(defaultParamsFor('LATE_ARRIVAL'));
+      setScopeRefs([]);
+      setParams(defaultParamsFor(type));
       setEnabled(true);
       setNotes('');
     }
     setEffectiveFrom(dayjs().add(1, 'month').startOf('month'));
-  }, [open, basedOn]);
+  }, [open, basedOn, preset?.ruleType, preset?.scope]);
 
   const entry = RULE_CATALOG[ruleType];
   const scopeMeta = RULE_SCOPES.find((s) => s.value === scope) || RULE_SCOPES[0];
   const needsRef = scopeMeta.refKind !== 'NONE';
+  const manyEmployees = !basedOn && scope === 'EMPLOYEE';
 
   const paramError = validateParams(ruleType, params);
   const danger = dangerFor(ruleType, params);
-  const canSubmit = !!effectiveFrom && !paramError && (!needsRef || !!scopeRef);
+  const canSubmit = !!effectiveFrom && !paramError
+    && (!needsRef || (manyEmployees ? scopeRefs.length > 0 : !!scopeRef));
 
   const draft = useMemo(
     () => ({
       scope,
-      scopeRef: needsRef ? scopeRef : '*',
+      scopeRef: manyEmployees ? null : needsRef ? scopeRef : '*',
+      ...(manyEmployees && { scopeRefs }),
       ruleType,
       effectiveFrom: effectiveFrom ? effectiveFrom.format('YYYY-MM-DD') : null,
       enabled,
       params: toParamsPayload(ruleType, params),
     }),
-    [scope, scopeRef, needsRef, ruleType, effectiveFrom, enabled, params]
+    [scope, scopeRef, scopeRefs, manyEmployees, needsRef, ruleType, effectiveFrom, enabled, params]
   );
 
   const changeRuleType = (value) => {
@@ -303,7 +314,7 @@ export default function PolicyRuleDialog({ open, basedOn, existingRules, saving,
           size="small"
           label="Rule"
           value={ruleType}
-          disabled={!!basedOn}
+          disabled={!!basedOn || !!preset}
           onChange={(e) => changeRuleType(e.target.value)}
         >
           {RULE_TYPES.map((t) => (
@@ -362,19 +373,22 @@ export default function PolicyRuleDialog({ open, basedOn, existingRules, saving,
               onChange={(e) => {
                 setScope(e.target.value);
                 setScopeRef('');
+                setScopeRefs([]);
               }}
               helperText={scopeMeta.help}
               slotProps={{ formHelperText: { sx: { mx: 0 } } }}
             >
               {RULE_SCOPES.map((s) => (
                 <MenuItem key={s.value} value={s.value}>
-                  {s.label}
+                  {s.value === 'EMPLOYEE' && !basedOn ? 'One or more employees' : s.label}
                 </MenuItem>
               ))}
             </TextField>
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
-            {scopeMeta.refKind === 'EMPLOYEE' ? (
+            {manyEmployees ? (
+              <EmployeeMultiPicker label="Employees - one or more" value={scopeRefs} onChange={setScopeRefs} />
+            ) : scopeMeta.refKind === 'EMPLOYEE' ? (
               <EmployeePicker
                 label="Employee"
                 value={scopeRef || null}
@@ -524,7 +538,7 @@ export default function PolicyRuleDialog({ open, basedOn, existingRules, saving,
               placeholder="Why this changed, and who asked for it"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              inputProps={{ maxLength: 500 }}
+              slotProps={{ htmlInput: { maxLength: 500 } }}
             />
           </Grid>
           <Grid size={{ xs: 12 }}>

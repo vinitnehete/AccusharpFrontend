@@ -16,6 +16,7 @@ import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
 import { useSnackbar } from 'notistack';
 import PageHeader from '../../components/PageHeader';
 import DataTable from '../../components/DataTable';
+import FilterBar from '../../components/FilterBar';
 import StatusChip from '../../components/StatusChip';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import ContractorPicker from '../../components/ContractorPicker';
@@ -235,7 +236,7 @@ export default function ContractorWorkforce() {
         }
       />
 
-      <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+      <FilterBar>
         <ContractorPicker
           value={contractorId}
           onChange={handleContractorChange}
@@ -263,7 +264,7 @@ export default function ContractorWorkforce() {
           <MenuItem value="INACTIVE">Off site</MenuItem>
         </TextField>
         <Chip label={`${activeCount} on site`} color="primary" variant="outlined" />
-      </Stack>
+      </FilterBar>
 
       <DataTable
         rows={filtered}

@@ -9,8 +9,6 @@ import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import BadgeRoundedIcon from '@mui/icons-material/BadgeRounded';
 import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded';
-import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded';
-import EventBusyRoundedIcon from '@mui/icons-material/EventBusyRounded';
 import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import ApartmentRoundedIcon from '@mui/icons-material/ApartmentRounded';
@@ -67,8 +65,6 @@ const navConfig = [
     label: 'HR Admin',
     items: [
       { label: 'Employees', path: '/employees', icon: BadgeRoundedIcon, access: ACCESS.employees },
-      { label: 'Shifts', path: '/shifts', icon: ScheduleRoundedIcon, access: ACCESS.shifts },
-      { label: 'Holidays', path: '/holidays', icon: EventBusyRoundedIcon, access: ACCESS.holidays },
       {
         label: 'All Leaves',
         path: '/leave/all',
@@ -89,7 +85,7 @@ const navConfig = [
         access: ACCESS.salarySlips,
       },
       { label: 'Masters', path: '/masters/companies', icon: ApartmentRoundedIcon, access: ACCESS.masters },
-      // Every salary, attendance, leave and work rule, on one page.
+      // Every salary, shift, holiday, attendance, leave and work rule - their only home.
       { label: 'Rules', path: '/rules', icon: RuleRoundedIcon, access: ACCESS.rules },
       { label: 'Reports', path: '/reports', icon: AssessmentRoundedIcon, access: ACCESS.reports },
     ],

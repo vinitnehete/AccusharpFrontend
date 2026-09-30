@@ -1,4 +1,4 @@
-import { blankForm, grantsFor, withLeaveType, withScope } from './leaveRuleForm';
+import { blankForm, grantsFor, scopeFields, withLeaveType, withScope } from './leaveRuleForm';
 
 describe('switching a leave rule form to another leave type', () => {
   it('clears the earned-leave carry-forward default when switching to casual or sick leave', () => {
@@ -54,5 +54,29 @@ describe('who a leave rule applies to, and how it is given', () => {
   it('opens with no monthly credit and no accrual cap - both are opt-in', () => {
     expect(blankForm().monthlyCredit).toBe('');
     expect(blankForm().yearlyAccrualCap).toBe('');
+  });
+});
+
+describe('a new leave rule for several employees', () => {
+  it('sends every picked employee when creating, so each gets their own rule', () => {
+    const form = { ...blankForm(), scope: 'EMPLOYEE', scopeRefs: ['EMP007', 'EMP008'] };
+
+    expect(scopeFields(form, true)).toEqual({ scope: 'EMPLOYEE', scopeRef: null, scopeRefs: ['EMP007', 'EMP008'] });
+  });
+
+  it('edits one rule for one employee, as before', () => {
+    const form = { ...blankForm(), scope: 'EMPLOYEE', scopeRef: 'EMP007', scopeRefs: [] };
+
+    expect(scopeFields(form, false)).toEqual({ scope: 'EMPLOYEE', scopeRef: 'EMP007' });
+  });
+
+  it('names any other population by its code, trimmed', () => {
+    expect(scopeFields({ ...blankForm(), scope: 'CATEGORY', scopeRef: ' DIRECTOR ' }, true))
+      .toEqual({ scope: 'CATEGORY', scopeRef: 'DIRECTOR' });
+    expect(scopeFields(blankForm(), true)).toEqual({ scope: 'COMPANY', scopeRef: null });
+  });
+
+  it('clears the picked employees when the population changes', () => {
+    expect(withScope({ ...blankForm(), scope: 'EMPLOYEE', scopeRefs: ['EMP007'] }, 'CATEGORY').scopeRefs).toEqual([]);
   });
 });

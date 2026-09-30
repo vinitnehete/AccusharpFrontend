@@ -198,7 +198,7 @@ export default function ContractorReports() {
 
   const filters = useMemo(
     () => (
-      <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', gap: 1 }}>
+      <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
         {view !== VIEWS.ALL && (
           <ContractorPicker value={contractorId} onChange={setContractorId} autoSelectFirst />
         )}

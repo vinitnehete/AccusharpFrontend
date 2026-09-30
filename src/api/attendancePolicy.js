@@ -10,6 +10,9 @@ import client from './client';
 const attendancePolicy = {
   list: (params) => client.get('/attendance-policy/rules', { params }).then((r) => r.data),
   create: (payload) => client.post('/attendance-policy/rules', payload).then((r) => r.data),
+  // A draft naming several employees is saved as one version each - all or none.
+  save: (payload) =>
+    client.post(`/attendance-policy/rules${payload.scopeRefs ? '/batch' : ''}`, payload).then((r) => r.data),
   remove: (id) => client.delete(`/attendance-policy/rules/${id}`).then((r) => r.data),
   // What actually applies to one employee on one date - the winning rule per
   // type, why it won, and the rules it beat.

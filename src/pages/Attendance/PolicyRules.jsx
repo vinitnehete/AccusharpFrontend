@@ -117,7 +117,7 @@ export default function PolicyRules() {
   const handleSubmit = (payload) => {
     setSaving(true);
     attendancePolicyApi
-      .create(payload)
+      .save(payload)
       .then(() => {
         enqueueSnackbar('Rule saved', { variant: 'success' });
         setDialogOpen(false);
@@ -326,7 +326,7 @@ export default function PolicyRules() {
       <Alert severity="info" sx={{ mb: 2.5 }}>
         <AlertTitle>Nothing here is switched on until you add a rule</AlertTitle>
         With no rules, attendance works exactly as it always has — the company-wide settings under{' '}
-        <strong>Masters → Attendance Rule</strong> apply to everybody. Add a rule only where a group
+        <strong>Rules → Attendance thresholds</strong> apply to everybody. Add a rule only where a group
         needs to be treated differently, and always run the test on a past month before saving.
         Rules are never edited: changing one saves a new version, so any day can be traced to the
         exact rule that priced it.

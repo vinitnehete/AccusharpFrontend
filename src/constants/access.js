@@ -20,20 +20,20 @@ export const ACCESS = {
   roster: anyOf('SHIFT_SCHEDULE_MANAGE'),
   contractors: anyOf('CONTRACTOR_READ', 'CONTRACTOR_MANAGE'),
   employees: anyOf('EMPLOYEE_CREATE', 'EMPLOYEE_UPDATE', 'EMPLOYEE_DELETE'),
+  // One profile: anyone who manages employees, or whose scope reaches them - a
+  // supervisor opening a team member from My Team. The server checks the scope.
+  employeeProfile: anyOf(
+    'EMPLOYEE_CREATE', 'EMPLOYEE_UPDATE', 'EMPLOYEE_DELETE',
+    'SCOPE_DIRECT_REPORTS', 'SCOPE_ALL_REPORTS', 'SCOPE_COMPANY'
+  ),
   shifts: anyOf('SHIFT_MANAGE'),
   holidays: anyOf('HOLIDAY_MANAGE'),
-  attendanceConsole: anyOf(
-    'ATTENDANCE_GENERATE', 'ATTENDANCE_CORRECT', 'ATTENDANCE_UNLOCK',
-    'ATTENDANCE_POLICY_READ', 'ATTENDANCE_POLICY_MANAGE'
-  ),
+  attendanceConsole: anyOf('ATTENDANCE_GENERATE', 'ATTENDANCE_CORRECT', 'ATTENDANCE_UNLOCK'),
   payroll: anyOf('PAYROLL_PROCESS'),
   salarySlips: anyOf('PAYROLL_PROCESS'),
-  // The read codes here are the HR-only ones; supervisors and employees hold
-  // DEPARTMENT_READ and friends just to label records, not to administer them.
-  masters: anyOf(
-    'DEPARTMENT_MANAGE', 'DESIGNATION_MANAGE', 'CATEGORY_MANAGE',
-    'EMPLOYMENT_TYPE_READ', 'SALARY_RULE_READ', 'ATTENDANCE_RULE_READ', 'WORK_POLICY_READ'
-  ),
+  // Manage codes only; supervisors and employees hold DEPARTMENT_READ and
+  // friends just to label records. The rule screens moved to `rules`.
+  masters: anyOf('DEPARTMENT_MANAGE', 'DESIGNATION_MANAGE', 'CATEGORY_MANAGE'),
   // One home for every rule the company runs on. Each tab on it has its own
   // rule below, so the page opens on any one of them and shows only those.
   salaryRule: anyOf('SALARY_RULE_READ'),

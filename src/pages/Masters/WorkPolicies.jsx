@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Dialog from '@mui/material/Dialog';
@@ -9,23 +10,29 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import FormGroup from '@mui/material/FormGroup';
 import Grid from '@mui/material/Grid';
+import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
+import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useSnackbar } from 'notistack';
 import PageHeader from '../../components/PageHeader';
 import DataTable from '../../components/DataTable';
 import EmployeePicker from '../../components/EmployeePicker';
+import EmployeeMultiPicker from '../../components/EmployeeMultiPicker';
 import StatusChip from '../../components/StatusChip';
 import workPoliciesApi from '../../api/workPolicies';
 import { EMPLOYEE_STATUS, labelize } from '../../constants/enums';
 import { useAuth } from '../../context/AuthContext';
 import {
+  DEDUCTION_LABEL,
   LEAVE_APPROVAL_LABEL,
   PAYROLL_MODE_LABEL,
   SCOPES,
@@ -33,7 +40,10 @@ import {
   SCOPE_REF_LABEL,
   TRACKING_LABEL,
   blankForm,
+  deductionsText,
+  fromPolicy,
   isValid,
+  latestIds,
   needsScopeRef,
   toPayload,
   withTracking,
@@ -58,6 +68,12 @@ const columns = [
   { field: 'payrollMode', headerName: 'Pay', width: 170, valueFormatter: (v) => labelize(v) },
   { field: 'leaveApproval', headerName: 'Leave approval', width: 180, valueFormatter: (v) => labelize(v) },
   {
+    field: 'excludedDeductions',
+    headerName: 'Not deducted',
+    width: 170,
+    valueGetter: (value) => deductionsText(value) || '-',
+  },
+  {
     field: 'effectiveFrom',
     headerName: 'From',
     width: 120,
@@ -80,6 +96,8 @@ export default function WorkPolicies() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(null);
+  // The version a change follows - null for a new policy.
+  const [basedOn, setBasedOn] = useState(null);
   const [saving, setSaving] = useState(false);
   const [checkUserId, setCheckUserId] = useState(null);
   const [checkDate, setCheckDate] = useState(dayjs());
@@ -111,12 +129,56 @@ export default function WorkPolicies() {
 
   const set = (name, value) => setForm((prev) => ({ ...prev, [name]: value }));
 
+  const toggleDeduction = (deduction, on) =>
+    set(
+      'excludedDeductions',
+      on ? [...form.excludedDeductions, deduction] : form.excludedDeductions.filter((d) => d !== deduction)
+    );
+
+  const openNew = () => {
+    setBasedOn(null);
+    setForm(blankForm());
+  };
+
+  // A change is a new version for the same people - the table keeps the old one.
+  const latest = latestIds(rows);
+  const tableColumns = canManage
+    ? [
+      ...columns,
+      {
+        field: 'actions',
+        headerName: '',
+        width: 70,
+        sortable: false,
+        renderCell: (params) =>
+          latest.has(params.row.id) && (
+            <Tooltip title="Change - saves a new version, keeps the old one">
+              <IconButton
+                size="small"
+                aria-label="Change this policy"
+                onClick={() => {
+                  setBasedOn(params.row);
+                  setForm(fromPolicy(params.row));
+                }}
+              >
+                <EditRoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ),
+      },
+    ]
+    : columns;
+
   const handleSave = () => {
+    const payload = toPayload(form);
     setSaving(true);
     workPoliciesApi
-      .create(toPayload(form))
+      .save(payload)
       .then(() => {
-        enqueueSnackbar('Work policy saved', { variant: 'success' });
+        enqueueSnackbar(
+          payload.scopeRefs?.length > 1 ? `Work policy saved for ${payload.scopeRefs.length} employees` : 'Work policy saved',
+          { variant: 'success' }
+        );
         setForm(null);
         load();
         if (checkUserId) setCheckDate((d) => d.clone());
@@ -132,7 +194,7 @@ export default function WorkPolicies() {
         subtitle="Who follows the attendance process, and who is simply paid their salary."
         actions={
           canManage && (
-            <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setForm(blankForm())}>
+            <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={openNew}>
               New policy
             </Button>
           )
@@ -147,14 +209,14 @@ export default function WorkPolicies() {
 
       <DataTable
         rows={rows}
-        columns={columns}
+        columns={tableColumns}
         loading={loading}
         height={420}
         emptyState={{
           title: 'No work policies',
           description: 'Every employee is tracked and paid from attendance.',
           action: canManage && (
-            <Button size="small" variant="contained" onClick={() => setForm(blankForm())}>
+            <Button size="small" variant="contained" onClick={openNew}>
               New policy
             </Button>
           ),
@@ -191,7 +253,9 @@ export default function WorkPolicies() {
       </Card>
 
       <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>New work policy</DialogTitle>
+        <DialogTitle>
+          {basedOn ? `Change work policy - saves version ${basedOn.version + 1}` : 'New work policy'}
+        </DialogTitle>
         <DialogContent>
           {form && (
             <Grid container spacing={2} sx={{ mt: 0.5 }}>
@@ -202,11 +266,12 @@ export default function WorkPolicies() {
                   size="small"
                   label="Applies to"
                   value={form.scope}
-                  onChange={(e) => setForm({ ...form, scope: e.target.value, scopeRef: '' })}
+                  disabled={!!basedOn}
+                  onChange={(e) => setForm({ ...form, scope: e.target.value, scopeRef: '', scopeRefs: [] })}
                 >
                   {SCOPES.map((scope) => (
                     <MenuItem key={scope} value={scope}>
-                      {SCOPE_LABEL[scope]}
+                      {scope === 'EMPLOYEE' && !basedOn ? 'One or more employees' : SCOPE_LABEL[scope]}
                     </MenuItem>
                   ))}
                 </TextField>
@@ -215,11 +280,11 @@ export default function WorkPolicies() {
               {needsScopeRef(form.scope) && (
                 <Grid size={{ xs: 12, sm: 6 }}>
                   {form.scope === 'EMPLOYEE' && (
-                    <EmployeePicker
-                      label={SCOPE_REF_LABEL.EMPLOYEE}
-                      value={form.scopeRef || null}
-                      onChange={(userId) => set('scopeRef', userId || '')}
-                      required
+                    <EmployeeMultiPicker
+                      label="Employees - one or more"
+                      value={form.scopeRefs}
+                      onChange={(userIds) => set('scopeRefs', userIds)}
+                      disabled={!!basedOn}
                     />
                   )}
                   {form.scope === 'EMPLOYMENT_TYPE' && (
@@ -230,6 +295,7 @@ export default function WorkPolicies() {
                       required
                       label={SCOPE_REF_LABEL.EMPLOYMENT_TYPE}
                       value={form.scopeRef}
+                      disabled={!!basedOn}
                       onChange={(e) => set('scopeRef', e.target.value)}
                     >
                       {EMPLOYEE_STATUS.map((status) => (
@@ -246,6 +312,7 @@ export default function WorkPolicies() {
                       required
                       label={SCOPE_REF_LABEL[form.scope]}
                       value={form.scopeRef}
+                      disabled={!!basedOn}
                       onChange={(e) => set('scopeRef', e.target.value)}
                       helperText="The code exactly as the master holds it - a typo silently never applies"
                     />
@@ -308,6 +375,27 @@ export default function WorkPolicies() {
                     </MenuItem>
                   ))}
                 </TextField>
+              </Grid>
+
+              <Grid size={12}>
+                <Typography variant="body2" color="text.secondary">
+                  Leave out of payroll - ticked deductions are not taken from these people's pay
+                </Typography>
+                <FormGroup row>
+                  {Object.entries(DEDUCTION_LABEL).map(([value, label]) => (
+                    <FormControlLabel
+                      key={value}
+                      label={label}
+                      control={
+                        <Checkbox
+                          size="small"
+                          checked={form.excludedDeductions.includes(value)}
+                          onChange={(e) => toggleDeduction(value, e.target.checked)}
+                        />
+                      }
+                    />
+                  ))}
+                </FormGroup>
               </Grid>
 
               <Grid size={{ xs: 12, sm: 6 }}>

@@ -71,6 +71,8 @@ import SalarySlip from './pages/SalarySlips/SalarySlip';
 import MySalarySlip from './pages/SalarySlips/MySalarySlip';
 import RulesLayout from './pages/Rules/RulesLayout';
 import RulesOverview from './pages/Rules/RulesOverview';
+import SandwichLeave from './pages/Rules/SandwichLeave';
+import { LEGACY_RULE_PATHS } from './pages/Rules/rulesCatalog';
 import ReportsHub from './pages/Reports/ReportsHub';
 import RolesList from './pages/Roles/RolesList';
 import RoleDetail from './pages/Roles/RoleDetail';
@@ -169,9 +171,6 @@ function App() {
             <Route element={<RequireAccess rule={ACCESS.leaveAll} />}>
               <Route path="all" element={<AllLeaves />} />
             </Route>
-            <Route element={<RequireAccess rule={ACCESS.leaveRules} />}>
-              <Route path="rules" element={<LeaveRules />} />
-            </Route>
           </Route>
 
           {/* Seeing a team stays with the fixed role - a custom role adds
@@ -213,16 +212,14 @@ function App() {
               <Route path="departments" element={<Departments />} />
               <Route path="designations" element={<Designations />} />
               <Route path="categories" element={<Categories />} />
-              <Route path="employment-types" element={<EmploymentTypes />} />
-              <Route path="salary-rule" element={<SalaryRule />} />
-              <Route path="attendance-rule" element={<AttendanceRule />} />
-              <Route path="work-policies" element={<WorkPolicies />} />
             </Route>
           </Route>
 
-          {/* Every rule in one place. Each tab is the same screen it has always
-              been elsewhere in the app, guarded by the same rule, so the old
-              locations keep working and nothing is configured twice. */}
+          {/* Every rule has one home, the Rules page. The screens' old
+              addresses redirect to their tab, so bookmarks still work. */}
+          {Object.entries(LEGACY_RULE_PATHS).map(([from, to]) => (
+            <Route key={from} path={from} element={<Navigate to={to} replace />} />
+          ))}
           <Route element={<RequireAccess rule={ACCESS.rules} />}>
             <Route path="/rules" element={<RulesLayout />}>
               <Route index element={<RulesOverview />} />
@@ -243,6 +240,7 @@ function App() {
               </Route>
               <Route element={<RequireAccess rule={ACCESS.attendancePolicy} />}>
                 <Route path="attendance-policy" element={<AttendancePolicyRules />} />
+                <Route path="sandwich-leave" element={<SandwichLeave />} />
                 <Route path="check" element={<AttendancePolicyEffective />} />
               </Route>
               <Route element={<RequireAccess rule={ACCESS.workPolicies} />}>
@@ -261,15 +259,9 @@ function App() {
             <Route path="/employees/bulk-salary-revision" element={<BulkSalaryRevision />} />
             <Route path="/employees/bulk-salary-structure" element={<BulkSalaryStructure />} />
             <Route path="/employees/:id/edit" element={<EmployeeForm />} />
+          </Route>
+          <Route element={<RequireAccess rule={ACCESS.employeeProfile} />}>
             <Route path="/employees/:id" element={<EmployeeDetail />} />
-          </Route>
-
-          <Route element={<RequireAccess rule={ACCESS.shifts} />}>
-            <Route path="/shifts" element={<ShiftList />} />
-          </Route>
-
-          <Route element={<RequireAccess rule={ACCESS.holidays} />}>
-            <Route path="/holidays" element={<Holidays />} />
           </Route>
 
           <Route element={<RequireAccess rule={ACCESS.attendanceConsole} />}>
@@ -277,8 +269,6 @@ function App() {
               <Route index element={<AttendanceGenerate />} />
               <Route path="generate" element={<AttendanceGenerate />} />
               <Route path="records" element={<AttendanceRecords />} />
-              <Route path="policy" element={<AttendancePolicyRules />} />
-              <Route path="policy-check" element={<AttendancePolicyEffective />} />
             </Route>
           </Route>
 

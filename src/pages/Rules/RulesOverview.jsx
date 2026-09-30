@@ -26,7 +26,7 @@ import shiftsApi from '../../api/shifts';
 import holidaysApi from '../../api/holidays';
 import { useAuth } from '../../context/AuthContext';
 import { labelize } from '../../constants/enums';
-import { ruleLabel } from '../../constants/attendancePolicy';
+import { describeRule, ruleLabel } from '../../constants/attendancePolicy';
 import { SCOPE_LABEL, needsScopeRef } from '../../constants/scopes';
 import { visibleRuleAreas } from './rulesCatalog';
 import {
@@ -36,6 +36,7 @@ import {
   summariseLeaveRules,
   summariseSalaryRule,
 } from './rulesSummary';
+import { deductionsText } from '../Masters/workPolicyForm';
 
 // status: 'set' - the company has configured this; 'default' - nothing
 // configured, and the built-in behaviour applies; 'missing' - nothing
@@ -111,6 +112,14 @@ const LOADERS = {
         };
     }),
 
+  'sandwich-leave': () =>
+    attendancePolicyApi.list().then((rules) => {
+      const on = inForce(rules.filter((rule) => rule.ruleType === 'SANDWICH_LEAVE'), (rule) => `${rule.scope}|${rule.scopeRef}`);
+      return on.length === 0
+        ? { status: 'default', text: 'Off - every public holiday is paid' }
+        : { status: 'set', text: 'On', items: on.map((rule) => `${who(rule)}: ${describeRule(rule.ruleType, rule.params)}`) };
+    }),
+
   'work-policies': () =>
     workPoliciesApi.list().then((policies) => {
       const on = inForce(policies, (policy) => `${policy.scope}|${policy.scopeRef}`);
@@ -123,7 +132,7 @@ const LOADERS = {
             (policy) =>
               `${who(policy)}: ${labelize(policy.attendanceTracking)}, ${labelize(policy.payrollMode)}, leave ${labelize(
                 policy.leaveApproval
-              )}`
+              )}${policy.excludedDeductions?.length ? `, no ${deductionsText(policy.excludedDeductions)}` : ''}`
           ),
         };
     }),

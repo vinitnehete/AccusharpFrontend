@@ -7,7 +7,7 @@ import UploadFileRoundedIcon from '@mui/icons-material/UploadFileRounded';
 // selected File (or null); `onChange` receives the File directly.
 export default function CsvFileField({ value, onChange, label = 'Choose CSV file' }) {
   return (
-    <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+    <Stack direction="row" spacing={1.5} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
       <Button variant="outlined" component="label" startIcon={<UploadFileRoundedIcon />}>
         {label}
         <input
