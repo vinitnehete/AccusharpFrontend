@@ -546,6 +546,13 @@ export const dangerFor = (ruleType, values) => {
 };
 
 /**
+ * A draft naming several employees is several rules to the server - one per
+ * person - so the month test runs over exactly those.
+ */
+export const expandDraft = ({ scopeRefs, ...draft }) =>
+  scopeRefs ? scopeRefs.map((scopeRef) => ({ ...draft, scopeRef })) : [draft];
+
+/**
  * Turns a stored rule back into the request shape, so the "test on a past
  * month" preview can be run over everything currently in force plus the draft.
  * The preview endpoint replaces the whole rule set rather than merging with what

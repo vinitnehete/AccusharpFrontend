@@ -121,7 +121,7 @@ export default function BulkImportEmployees() {
               Download the template below — required columns are marked in red. Fill it in, then use{' '}
               <strong>File → Save As → CSV (Comma delimited)</strong> before uploading, since the upload only
               accepts <code>.csv</code> files. Expected header (case-insensitive, any order):{' '}
-              <code>{TEMPLATE_COLUMNS.join(', ')}</code>. Required: <code>userId</code>, <code>employeeCode</code>,{' '}
+              <code>{TEMPLATE_COLUMNS.join(', ')}</code>. Required: <code>userId</code>,{' '}
               <code>employeeName</code>, <code>status</code>, <code>grossSalary</code>, <code>pfBasic</code>,{' '}
               <code>medicalAllowance</code> and <code>otherAllowance</code> — everything else is optional.{' '}
               <code>companyId</code> is ignored unless you're a platform-level import; it's always overwritten

@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { needsScopeRef } from '../../constants/scopes';
 
 export { SCOPES, SCOPE_LABEL, SCOPE_REF_LABEL, needsScopeRef } from '../../constants/scopes';
 
@@ -15,7 +16,19 @@ export const withScope = (form, scope) => ({
   ...form,
   scope,
   scopeRef: scope === 'EMPLOYMENT_TYPE' ? 'PERMANENT' : '',
+  scopeRefs: [],
 });
+
+/**
+ * Who the rule names, as the server takes it. A new rule for employees names a
+ * list - one rule is saved per person; an edit changes the one rule it opened.
+ */
+export const scopeFields = (form, isNew) => {
+  if (isNew && form.scope === 'EMPLOYEE') {
+    return { scope: form.scope, scopeRef: null, scopeRefs: form.scopeRefs };
+  }
+  return { scope: form.scope, scopeRef: needsScopeRef(form.scope) ? form.scopeRef.trim() : null };
+};
 
 // The OSH Code carry-forward limit for EL - prefilled on a new rule, and only
 // meaningful for earned leave.
@@ -24,6 +37,7 @@ const EARNED_LEAVE_CARRY_FORWARD_DEFAULT = '30';
 export const blankForm = () => ({
   scope: 'COMPANY',
   scopeRef: 'ANY',
+  scopeRefs: [],
   leaveType: 'EARNED_LEAVE',
   grantMethod: 'EARNED_BY_ATTENDANCE',
   yearlyDays: '',

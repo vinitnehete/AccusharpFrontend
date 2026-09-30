@@ -36,6 +36,7 @@ import {
   summariseLeaveRules,
   summariseSalaryRule,
 } from './rulesSummary';
+import { deductionsText } from '../Masters/workPolicyForm';
 
 // status: 'set' - the company has configured this; 'default' - nothing
 // configured, and the built-in behaviour applies; 'missing' - nothing
@@ -131,7 +132,7 @@ const LOADERS = {
             (policy) =>
               `${who(policy)}: ${labelize(policy.attendanceTracking)}, ${labelize(policy.payrollMode)}, leave ${labelize(
                 policy.leaveApproval
-              )}`
+              )}${policy.excludedDeductions?.length ? `, no ${deductionsText(policy.excludedDeductions)}` : ''}`
           ),
         };
     }),

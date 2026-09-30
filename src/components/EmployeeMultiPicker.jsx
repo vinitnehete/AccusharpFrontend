@@ -3,7 +3,7 @@ import TextField from '@mui/material/TextField';
 import Chip from '@mui/material/Chip';
 import { useActingAs } from '../context/ActingAsContext';
 
-export default function EmployeeMultiPicker({ label = 'Employees', value, onChange, size = 'small' }) {
+export default function EmployeeMultiPicker({ label = 'Employees', value, onChange, size = 'small', disabled = false }) {
   const { employees } = useActingAs();
   const selected = employees.filter((e) => value?.includes(e.userId));
 
@@ -11,6 +11,7 @@ export default function EmployeeMultiPicker({ label = 'Employees', value, onChan
     <Autocomplete
       multiple
       size={size}
+      disabled={disabled}
       options={employees}
       value={selected}
       getOptionLabel={(opt) => `${opt.employeeName} (${opt.userId})`}

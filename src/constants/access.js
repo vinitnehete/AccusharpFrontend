@@ -20,6 +20,12 @@ export const ACCESS = {
   roster: anyOf('SHIFT_SCHEDULE_MANAGE'),
   contractors: anyOf('CONTRACTOR_READ', 'CONTRACTOR_MANAGE'),
   employees: anyOf('EMPLOYEE_CREATE', 'EMPLOYEE_UPDATE', 'EMPLOYEE_DELETE'),
+  // One profile: anyone who manages employees, or whose scope reaches them - a
+  // supervisor opening a team member from My Team. The server checks the scope.
+  employeeProfile: anyOf(
+    'EMPLOYEE_CREATE', 'EMPLOYEE_UPDATE', 'EMPLOYEE_DELETE',
+    'SCOPE_DIRECT_REPORTS', 'SCOPE_ALL_REPORTS', 'SCOPE_COMPANY'
+  ),
   shifts: anyOf('SHIFT_MANAGE'),
   holidays: anyOf('HOLIDAY_MANAGE'),
   attendanceConsole: anyOf('ATTENDANCE_GENERATE', 'ATTENDANCE_CORRECT', 'ATTENDANCE_UNLOCK'),

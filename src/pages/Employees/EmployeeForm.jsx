@@ -149,7 +149,7 @@ export default function EmployeeForm() {
       const category = categories.find((c) => c.categoryName === emp.categoryName);
       setForm({
         userId: emp.userId,
-        employeeCode: emp.employeeCode,
+        employeeCode: emp.employeeCode || '',
         employeeName: emp.employeeName,
         companyId: company?.id ?? '',
         departmentId: department?.id ?? '',
@@ -199,7 +199,6 @@ export default function EmployeeForm() {
   const requiredOk = useMemo(
     () =>
       form.userId &&
-      form.employeeCode &&
       form.employeeName &&
       form.companyId &&
       form.departmentId &&
@@ -220,7 +219,7 @@ export default function EmployeeForm() {
     setSaving(true);
     const payload = {
       userId: form.userId,
-      employeeCode: form.employeeCode,
+      employeeCode: form.employeeCode.trim() || null,
       employeeName: form.employeeName,
       companyId: Number(form.companyId),
       departmentId: Number(form.departmentId),
@@ -328,8 +327,7 @@ export default function EmployeeForm() {
               <TextField
                 fullWidth
                 size="small"
-                label="Employee Code"
-                required
+                label="Employee Code (optional)"
                 value={form.employeeCode}
                 onChange={(e) => set('employeeCode', e.target.value)}
               />

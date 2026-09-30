@@ -30,6 +30,7 @@ import leaveBalancesApi from '../../api/leaveBalances';
 import leaveSettingsApi from '../../api/leaveSettings';
 import { EMPLOYEE_STATUS, labelize } from '../../constants/enums';
 import EmployeePicker from '../../components/EmployeePicker';
+import EmployeeMultiPicker from '../../components/EmployeeMultiPicker';
 import {
   SCOPES,
   SCOPE_LABEL,
@@ -37,6 +38,7 @@ import {
   blankForm,
   grantsFor,
   needsScopeRef,
+  scopeFields,
   withLeaveType,
   withScope,
 } from './leaveRuleForm';
@@ -79,7 +81,7 @@ const toForm = (rule) => {
   };
 };
 
-const toPayload = (form) => {
+const toPayload = (form, isNew) => {
   const earned = form.grantMethod === 'EARNED_BY_ATTENDANCE';
   const steps = [
     [form.upperStepDays, form.upperStepCredit],
@@ -88,8 +90,7 @@ const toPayload = (form) => {
     .filter(([days, credit]) => days !== '' && credit !== '')
     .map(([days, credit]) => ({ minDays: Number(days), credit: Number(credit) }));
   return {
-    scope: form.scope,
-    scopeRef: needsScopeRef(form.scope) ? form.scopeRef.trim() : null,
+    ...scopeFields(form, isNew),
     leaveType: form.leaveType,
     grantMethod: form.grantMethod,
     yearlyDays: form.grantMethod === 'YEARLY_GRANT' ? num(form.yearlyDays) : null,
@@ -199,15 +200,16 @@ export default function LeaveRules() {
   const yearly = form?.grantMethod === 'YEARLY_GRANT';
   const earned = form?.grantMethod === 'EARNED_BY_ATTENDANCE';
   const monthly = form?.grantMethod === 'MONTHLY_ACCRUAL';
+  const manyEmployees = !editing?.id && form?.scope === 'EMPLOYEE';
   const valid = !!form && !!form.effectiveFrom
     && (!yearly || form.yearlyDays !== '')
     && (!monthly || form.monthlyCredit !== '')
-    && (!needsScopeRef(form.scope) || !!(form.scopeRef || '').trim());
+    && (manyEmployees ? form.scopeRefs.length > 0 : !needsScopeRef(form.scope) || !!(form.scopeRef || '').trim());
 
   const handleSave = () => {
     setSaving(true);
-    const payload = toPayload(form);
-    const request = editing.id ? leaveRulesApi.update(editing.id, payload) : leaveRulesApi.create(payload);
+    const payload = toPayload(form, !editing.id);
+    const request = editing.id ? leaveRulesApi.update(editing.id, payload) : leaveRulesApi.save(payload);
     request
       .then(() => {
         enqueueSnackbar('Leave rule saved', { variant: 'success' });
@@ -389,7 +391,9 @@ export default function LeaveRules() {
                 <TextField select fullWidth size="small" label="Applies to" value={form.scope}
                   onChange={(e) => setScope(e.target.value)}>
                   {SCOPES.map((scope) => (
-                    <MenuItem key={scope} value={scope}>{SCOPE_LABEL[scope]}</MenuItem>
+                    <MenuItem key={scope} value={scope}>
+                      {scope === 'EMPLOYEE' && !editing?.id ? 'One or more employees' : SCOPE_LABEL[scope]}
+                    </MenuItem>
                   ))}
                 </TextField>
               </Grid>
@@ -403,7 +407,11 @@ export default function LeaveRules() {
                     ))}
                   </TextField>
                 )}
-                {form.scope === 'EMPLOYEE' && (
+                {manyEmployees && (
+                  <EmployeeMultiPicker label="Employees - one or more" value={form.scopeRefs}
+                    onChange={(userIds) => set('scopeRefs', userIds)} />
+                )}
+                {form.scope === 'EMPLOYEE' && !manyEmployees && (
                   <EmployeePicker label={SCOPE_REF_LABEL.EMPLOYEE} value={form.scopeRef || null}
                     onChange={(userId) => set('scopeRef', userId || '')} required />
                 )}

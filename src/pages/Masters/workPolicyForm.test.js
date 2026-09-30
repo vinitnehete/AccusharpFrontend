@@ -1,4 +1,6 @@
-import { blankForm, isValid, needsScopeRef, toPayload, withTracking } from './workPolicyForm';
+import {
+  blankForm, deductionsText, fromPolicy, isValid, latestIds, needsScopeRef, toPayload, withTracking,
+} from './workPolicyForm';
 
 describe('work policy form', () => {
   it('opens on the settings every employee is already on', () => {
@@ -33,8 +35,11 @@ describe('work policy form', () => {
   });
 
   it('is invalid until the scope it names is filled in', () => {
-    expect(isValid({ ...blankForm(), scope: 'EMPLOYEE', scopeRef: '' })).toBe(false);
-    expect(isValid({ ...blankForm(), scope: 'EMPLOYEE', scopeRef: 'EMP007' })).toBe(true);
+    expect(isValid({ ...blankForm(), scope: 'CATEGORY', scopeRef: '' })).toBe(false);
+    expect(isValid({ ...blankForm(), scope: 'CATEGORY', scopeRef: 'DIRECTOR' })).toBe(true);
+    // Employees are picked in a list - one is enough, several are fine.
+    expect(isValid({ ...blankForm(), scope: 'EMPLOYEE', scopeRefs: [] })).toBe(false);
+    expect(isValid({ ...blankForm(), scope: 'EMPLOYEE', scopeRefs: ['EMP007'] })).toBe(true);
     expect(isValid(blankForm())).toBe(true);
     expect(isValid({ ...blankForm(), effectiveFrom: null })).toBe(false);
   });
@@ -51,5 +56,55 @@ describe('work policy form', () => {
     const payload = toPayload({ ...blankForm(), scope: 'CATEGORY', scopeRef: ' DIRECTOR ' });
 
     expect(payload.scopeRef).toBe('DIRECTOR');
+  });
+
+  it('sends every picked employee, so each gets their own version', () => {
+    const payload = toPayload({ ...blankForm(), scope: 'EMPLOYEE', scopeRefs: ['EMP007', 'EMP008'] });
+
+    expect(payload.scopeRefs).toEqual(['EMP007', 'EMP008']);
+    expect(payload.scopeRef).toBeNull();
+    expect(toPayload(blankForm()).scopeRefs).toBeUndefined();
+  });
+
+  it('sends the deductions to leave out of payroll - none by default', () => {
+    expect(toPayload(blankForm()).excludedDeductions).toEqual([]);
+    expect(toPayload({ ...blankForm(), excludedDeductions: ['PF', 'PROFESSIONAL_TAX'] }).excludedDeductions)
+      .toEqual(['PF', 'PROFESSIONAL_TAX']);
+  });
+
+  it('names the left-out deductions in words', () => {
+    expect(deductionsText(['PF', 'PROFESSIONAL_TAX'])).toBe('PF, Professional tax');
+    expect(deductionsText([])).toBe('');
+    expect(deductionsText(undefined)).toBe('');
+  });
+});
+
+describe('changing a work policy', () => {
+  const director = {
+    id: 4, scope: 'EMPLOYEE', scopeRef: 'DIR01', version: 2, effectiveFrom: '2026-08-01', enabled: true,
+    attendanceTracking: 'NOT_TRACKED', payrollMode: 'FIXED_MONTHLY', leaveApproval: 'AUTO_APPROVE',
+    excludedDeductions: ['PF'], notes: 'old note',
+  };
+
+  it('opens the form on what the policy says today, for the same person', () => {
+    const form = fromPolicy(director);
+
+    expect(form.scope).toBe('EMPLOYEE');
+    expect(form.scopeRefs).toEqual(['DIR01']);
+    expect(form.attendanceTracking).toBe('NOT_TRACKED');
+    expect(form.excludedDeductions).toEqual(['PF']);
+    expect(form.notes).toBe('');
+    // A new version has to start somewhere new.
+    expect(form.effectiveFrom.isAfter(director.effectiveFrom)).toBe(true);
+  });
+
+  it('keeps a population code for any other scope', () => {
+    expect(fromPolicy({ ...director, scope: 'CATEGORY', scopeRef: 'DIRECTOR' }).scopeRef).toBe('DIRECTOR');
+  });
+
+  it('offers a change only on the newest version of each policy', () => {
+    const rows = [director, { ...director, id: 3, version: 1 }, { ...director, id: 9, scopeRef: 'DIR02', version: 1 }];
+
+    expect([...latestIds(rows)].sort()).toEqual([4, 9]);
   });
 });

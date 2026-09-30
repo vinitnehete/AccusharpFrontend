@@ -83,6 +83,7 @@ export default function EmployeeDetail() {
   const { reloadEmployees } = useActingAs();
   const { can } = useAuth();
   const canUpdate = can('EMPLOYEE_UPDATE');
+  const canSeePay = canUpdate || can('PAYROLL_PROCESS');
   const canReadRoles = can('ROLE_READ');
   const canManageRoles = can('ROLE_MANAGE');
   const [emp, setEmp] = useState(null);
@@ -135,7 +136,9 @@ export default function EmployeeDetail() {
       .finally(() => setRevisionsLoading(false));
   };
 
-  useEffect(loadRevisions, [id]);
+  useEffect(() => {
+    if (canSeePay) loadRevisions();
+  }, [id, canSeePay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadCustomRoles = (userId) => {
     if (!canReadRoles || !userId) return;
@@ -314,7 +317,7 @@ export default function EmployeeDetail() {
     <>
       <PageHeader
         title={emp.employeeName}
-        subtitle={`${emp.employeeCode} · ${emp.userId}`}
+        subtitle={[emp.employeeCode, emp.userId].filter(Boolean).join(' · ')}
         actions={
           canUpdate && (
             <>
@@ -391,119 +394,129 @@ export default function EmployeeDetail() {
                 <Field label="Email" value={emp.email} />
                 <Field label="Phone" value={emp.phone} />
               </Grid>
-              <Divider sx={{ my: 2 }} />
-              <Button size="small" onClick={() => setReassignOpen(true)}>
-                Reassign supervisor
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card sx={{ mb: 2.5 }}>
-            <CardHeader title={<Typography variant="subtitle1">Statutory & bank details</Typography>} />
-            <CardContent sx={{ pt: 0 }}>
-              <Grid container spacing={2}>
-                <Field label="UAN No" value={maskSensitive(emp.uanNo)} />
-                <Field label="ESIC IP No" value={maskSensitive(emp.esicIpNo)} />
-                <Field label="Bank Account No" value={maskSensitive(emp.bankAccountNo)} />
-                <Field label="Bank IFSC No" value={maskSensitive(emp.bankIfscNo)} />
-              </Grid>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader
-              title={<Typography variant="subtitle1">Salary structure</Typography>}
-              action={
-                <Stack direction="row" spacing={1} sx={{ mt: 1, mr: 1, alignItems: 'center' }}>
-                  <Chip
-                    label={emp.salaryStructureOverridden ? 'Manually overridden' : 'Rule-derived'}
-                    color={emp.salaryStructureOverridden ? 'warning' : 'default'}
-                    size="small"
-                  />
-                  {canUpdate && (
-                    <Button size="small" startIcon={<TrendingUpRoundedIcon />} onClick={openReviseDialog}>
-                      Revise salary
-                    </Button>
-                  )}
-                  {canUpdate && (
-                    <Button size="small" startIcon={<EditRoundedIcon />} onClick={openStructureDialog}>
-                      Override
-                    </Button>
-                  )}
-                  {canUpdate && emp.salaryStructureOverridden && (
-                    <Button
-                      size="small"
-                      color="inherit"
-                      startIcon={<RestartAltRoundedIcon />}
-                      onClick={() => setRegenerateConfirmOpen(true)}
-                    >
-                      Regenerate from rule
-                    </Button>
-                  )}
-                </Stack>
-              }
-            />
-            <CardContent sx={{ pt: 0 }}>
-              <Grid container spacing={2}>
-                <Field label="Gross salary" value={<MoneyText value={emp.grossSalary} />} />
-                <Field label="Gross wage (proration base)" value={<MoneyText value={emp.grossSalaryWage} />} />
-                <Field label="Overtime eligible" value={emp.overtimeEligible ? 'Yes' : 'No'} />
-                <Field label="Basic + DA" value={<MoneyText value={emp.basicDA} />} />
-                <Field label="HRA" value={<MoneyText value={emp.hra} />} />
-                <Field label="Conveyance" value={<MoneyText value={emp.conveyanceAllowance} />} />
-                <Field label="Education" value={<MoneyText value={emp.educationAllowance} />} />
-                <Field label="Medical allowance" value={<MoneyText value={emp.medicalAllowance} />} />
-                <Field label="Other allowance" value={<MoneyText value={emp.otherAllowance} />} />
-                <Field label="PF basic" value={<MoneyText value={emp.pfBasic} />} />
-              </Grid>
-            </CardContent>
-          </Card>
-
-          <Card sx={{ mt: 2.5 }}>
-            <CardHeader title={<Typography variant="subtitle1">Salary revision history</Typography>} />
-            <CardContent sx={{ pt: 0 }}>
-              {revisionsLoading ? (
-                <Skeleton variant="rounded" height={80} />
-              ) : revisions.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  No hikes, promotions or corrections recorded yet — use &quot;Revise salary&quot;
-                  above instead of a plain edit so a change like this is never lost.
-                </Typography>
-              ) : (
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Effective</TableCell>
-                      <TableCell>Reason</TableCell>
-                      <TableCell align="right">Previous</TableCell>
-                      <TableCell align="right">New</TableCell>
-                      <TableCell align="right">Hike</TableCell>
-                      <TableCell>By</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {revisions.map((rev, i) => (
-                      <TableRow key={rev.id ?? i}>
-                        <TableCell>{dayjs(rev.effectiveDate).format('DD MMM YYYY')}</TableCell>
-                        <TableCell>{labelize(rev.reason)}</TableCell>
-                        <TableCell align="right">
-                          <MoneyText value={rev.previousGrossSalary} />
-                        </TableCell>
-                        <TableCell align="right">
-                          <MoneyText value={rev.newGrossSalary} />
-                        </TableCell>
-                        <TableCell align="right">
-                          {rev.hikePercent > 0 ? '+' : ''}
-                          {rev.hikePercent}%
-                        </TableCell>
-                        <TableCell>{rev.revisedBy || '-'}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              {canUpdate && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Button size="small" onClick={() => setReassignOpen(true)}>
+                    Reassign supervisor
+                  </Button>
+                </>
               )}
             </CardContent>
           </Card>
+
+          {/* Pay and bank details are for those who manage pay - not a supervisor
+            opening a team member from My Team. */}
+          {canSeePay && (
+            <>
+            <Card sx={{ mb: 2.5 }}>
+              <CardHeader title={<Typography variant="subtitle1">Statutory & bank details</Typography>} />
+              <CardContent sx={{ pt: 0 }}>
+                <Grid container spacing={2}>
+                  <Field label="UAN No" value={maskSensitive(emp.uanNo)} />
+                  <Field label="ESIC IP No" value={maskSensitive(emp.esicIpNo)} />
+                  <Field label="Bank Account No" value={maskSensitive(emp.bankAccountNo)} />
+                  <Field label="Bank IFSC No" value={maskSensitive(emp.bankIfscNo)} />
+                </Grid>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader
+                title={<Typography variant="subtitle1">Salary structure</Typography>}
+                action={
+                  <Stack direction="row" spacing={1} sx={{ mt: 1, mr: 1, alignItems: 'center' }}>
+                    <Chip
+                      label={emp.salaryStructureOverridden ? 'Manually overridden' : 'Rule-derived'}
+                      color={emp.salaryStructureOverridden ? 'warning' : 'default'}
+                      size="small"
+                    />
+                    {canUpdate && (
+                      <Button size="small" startIcon={<TrendingUpRoundedIcon />} onClick={openReviseDialog}>
+                        Revise salary
+                      </Button>
+                    )}
+                    {canUpdate && (
+                      <Button size="small" startIcon={<EditRoundedIcon />} onClick={openStructureDialog}>
+                        Override
+                      </Button>
+                    )}
+                    {canUpdate && emp.salaryStructureOverridden && (
+                      <Button
+                        size="small"
+                        color="inherit"
+                        startIcon={<RestartAltRoundedIcon />}
+                        onClick={() => setRegenerateConfirmOpen(true)}
+                      >
+                        Regenerate from rule
+                      </Button>
+                    )}
+                  </Stack>
+                }
+              />
+              <CardContent sx={{ pt: 0 }}>
+                <Grid container spacing={2}>
+                  <Field label="Gross salary" value={<MoneyText value={emp.grossSalary} />} />
+                  <Field label="Gross wage (proration base)" value={<MoneyText value={emp.grossSalaryWage} />} />
+                  <Field label="Overtime eligible" value={emp.overtimeEligible ? 'Yes' : 'No'} />
+                  <Field label="Basic + DA" value={<MoneyText value={emp.basicDA} />} />
+                  <Field label="HRA" value={<MoneyText value={emp.hra} />} />
+                  <Field label="Conveyance" value={<MoneyText value={emp.conveyanceAllowance} />} />
+                  <Field label="Education" value={<MoneyText value={emp.educationAllowance} />} />
+                  <Field label="Medical allowance" value={<MoneyText value={emp.medicalAllowance} />} />
+                  <Field label="Other allowance" value={<MoneyText value={emp.otherAllowance} />} />
+                  <Field label="PF basic" value={<MoneyText value={emp.pfBasic} />} />
+                </Grid>
+              </CardContent>
+            </Card>
+
+            <Card sx={{ mt: 2.5 }}>
+              <CardHeader title={<Typography variant="subtitle1">Salary revision history</Typography>} />
+              <CardContent sx={{ pt: 0 }}>
+                {revisionsLoading ? (
+                  <Skeleton variant="rounded" height={80} />
+                ) : revisions.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    No hikes, promotions or corrections recorded yet — use &quot;Revise salary&quot;
+                    above instead of a plain edit so a change like this is never lost.
+                  </Typography>
+                ) : (
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Effective</TableCell>
+                        <TableCell>Reason</TableCell>
+                        <TableCell align="right">Previous</TableCell>
+                        <TableCell align="right">New</TableCell>
+                        <TableCell align="right">Hike</TableCell>
+                        <TableCell>By</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {revisions.map((rev, i) => (
+                        <TableRow key={rev.id ?? i}>
+                          <TableCell>{dayjs(rev.effectiveDate).format('DD MMM YYYY')}</TableCell>
+                          <TableCell>{labelize(rev.reason)}</TableCell>
+                          <TableCell align="right">
+                            <MoneyText value={rev.previousGrossSalary} />
+                          </TableCell>
+                          <TableCell align="right">
+                            <MoneyText value={rev.newGrossSalary} />
+                          </TableCell>
+                          <TableCell align="right">
+                            {rev.hikePercent > 0 ? '+' : ''}
+                            {rev.hikePercent}%
+                          </TableCell>
+                          <TableCell>{rev.revisedBy || '-'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+            </>
+          )}
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>

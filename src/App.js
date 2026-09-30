@@ -259,6 +259,8 @@ function App() {
             <Route path="/employees/bulk-salary-revision" element={<BulkSalaryRevision />} />
             <Route path="/employees/bulk-salary-structure" element={<BulkSalaryStructure />} />
             <Route path="/employees/:id/edit" element={<EmployeeForm />} />
+          </Route>
+          <Route element={<RequireAccess rule={ACCESS.employeeProfile} />}>
             <Route path="/employees/:id" element={<EmployeeDetail />} />
           </Route>
 

@@ -4,7 +4,7 @@ import SandwichLeave from './SandwichLeave';
 import attendancePolicyApi from '../../api/attendancePolicy';
 import { useAuth } from '../../context/AuthContext';
 
-jest.mock('../../api/attendancePolicy', () => ({ list: jest.fn(), create: jest.fn(), remove: jest.fn() }));
+jest.mock('../../api/attendancePolicy', () => ({ list: jest.fn(), create: jest.fn(), save: jest.fn(), remove: jest.fn() }));
 jest.mock('../../context/AuthContext', () => ({ useAuth: jest.fn() }));
 jest.mock('notistack', () => ({ useSnackbar: () => ({ enqueueSnackbar: jest.fn() }) }));
 // react-router v7 does not load under this Jest; a plain anchor is all a link needs.

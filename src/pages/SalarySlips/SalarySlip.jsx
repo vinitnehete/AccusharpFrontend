@@ -147,9 +147,11 @@ export default function SalarySlip({ fixedEmployeeId }) {
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="subtitle1" noWrap>
                     {slip.employeeName}{' '}
-                    <Box component="span" sx={{ color: 'text.secondary', fontWeight: 400 }}>
-                      ({slip.employeeCode})
-                    </Box>
+                    {slip.employeeCode && (
+                      <Box component="span" sx={{ color: 'text.secondary', fontWeight: 400 }}>
+                        ({slip.employeeCode})
+                      </Box>
+                    )}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" noWrap>
                     {slip.departmentName} — {slip.designationName}

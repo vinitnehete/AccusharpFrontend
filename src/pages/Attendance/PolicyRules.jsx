@@ -117,7 +117,7 @@ export default function PolicyRules() {
   const handleSubmit = (payload) => {
     setSaving(true);
     attendancePolicyApi
-      .create(payload)
+      .save(payload)
       .then(() => {
         enqueueSnackbar('Rule saved', { variant: 'success' });
         setDialogOpen(false);

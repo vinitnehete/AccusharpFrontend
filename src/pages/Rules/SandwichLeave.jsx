@@ -230,7 +230,7 @@ export default function SandwichLeave() {
         existingRules={latest.filter((rule) => rule.enabled)}
         saving={busy}
         onClose={() => setDialog(null)}
-        onSubmit={(payload) => save(attendancePolicyApi.create(payload), 'Sandwich leave saved')}
+        onSubmit={(payload) => save(attendancePolicyApi.save(payload), 'Sandwich leave saved')}
       />
 
       <ConfirmDialog

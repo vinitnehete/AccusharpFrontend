@@ -7,7 +7,7 @@ import ExcelJS from 'exceljs';
 // purely to make the sheet easier to read.
 const INFO_COLUMNS = [
   { field: 'userId', required: true },
-  { field: 'employeeCode', required: true },
+  { field: 'employeeCode', required: false },
   { field: 'employeeName', required: true },
   { field: 'companyId', required: false },
   { field: 'departmentId', required: false },

@@ -1,4 +1,4 @@
-import { RULE_CATALOG, RULE_TYPES, describeRule, toParamsPayload, validateParams } from './attendancePolicy';
+import { RULE_CATALOG, RULE_TYPES, describeRule, expandDraft, toParamsPayload, validateParams } from './attendancePolicy';
 
 describe('the sandwich leave rule in the attendance policy catalog', () => {
   it('is offered as a monthly rule', () => {
@@ -16,5 +16,22 @@ describe('the sandwich leave rule in the attendance policy catalog', () => {
   it('says in one sentence what it does, either way', () => {
     expect(describeRule('SANDWICH_LEAVE', '{"adjacentLeaveUnpaid":true}')).toMatch(/holiday .* leave next to it too/i);
     expect(describeRule('SANDWICH_LEAVE', '{"adjacentLeaveUnpaid":false}')).toMatch(/only the holiday/i);
+  });
+});
+
+describe('one attendance rule for several employees', () => {
+  it('tests the month with one rule per picked employee', () => {
+    const draft = { scope: 'EMPLOYEE', scopeRef: null, scopeRefs: ['EMP1', 'EMP2'], ruleType: 'LATE_ARRIVAL' };
+
+    expect(expandDraft(draft)).toEqual([
+      { scope: 'EMPLOYEE', scopeRef: 'EMP1', ruleType: 'LATE_ARRIVAL' },
+      { scope: 'EMPLOYEE', scopeRef: 'EMP2', ruleType: 'LATE_ARRIVAL' },
+    ]);
+  });
+
+  it('leaves a rule for one population as it is', () => {
+    const draft = { scope: 'CATEGORY', scopeRef: 'STAFF', ruleType: 'LATE_ARRIVAL' };
+
+    expect(expandDraft(draft)).toEqual([draft]);
   });
 });

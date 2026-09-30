@@ -6,17 +6,12 @@ import PageHeader from '../../components/PageHeader';
 import DataTable from '../../components/DataTable';
 import StatusChip from '../../components/StatusChip';
 import employeesApi from '../../api/employees';
-import { RECORD_STATUS_COLOR, labelize } from '../../constants/enums';
+import { RECORD_STATUS_COLOR } from '../../constants/enums';
 import { useActingAs } from '../../context/ActingAsContext';
+import { personColumns, personRowProps } from './employeeColumns';
 
-const columns = (navigate) => [
-  { field: 'employeeCode', headerName: 'Code', width: 110 },
-  { field: 'employeeName', headerName: 'Name', flex: 1, minWidth: 180 },
-  { field: 'userId', headerName: 'User ID', width: 110 },
-  { field: 'departmentName', headerName: 'Department', width: 160 },
-  { field: 'designationName', headerName: 'Designation', width: 170 },
-  { field: 'categoryName', headerName: 'Category', width: 130 },
-  { field: 'status', headerName: 'Employment', width: 130, valueFormatter: (v) => labelize(v) },
+const columns = [
+  ...personColumns,
   {
     field: 'recordStatus',
     headerName: 'Status',
@@ -54,8 +49,9 @@ export default function MyTeam() {
       ) : (
         <DataTable
           rows={rows}
-          columns={columns(navigate)}
+          columns={columns}
           loading={loading}
+          {...personRowProps}
           onRowClick={(params) => navigate(`/employees/${params.row.id}`)}
         />
       )}

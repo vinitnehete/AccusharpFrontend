@@ -6,6 +6,8 @@ import client from './client';
 const workPolicies = {
   list: () => client.get('/work-policies').then((r) => r.data),
   create: (payload) => client.post('/work-policies', payload).then((r) => r.data),
+  // Several employees at once are saved as one version each - all saved or none.
+  save: (payload) => client.post(`/work-policies${payload.scopeRefs ? '/batch' : ''}`, payload).then((r) => r.data),
   effective: (userId, date) =>
     client.get('/work-policies/effective', { params: { userId, date } }).then((r) => r.data),
 };
