@@ -81,12 +81,14 @@ export default function EmployeeDetail() {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const { reloadEmployees } = useActingAs();
-  const { can } = useAuth();
+  const { can, username, isAdmin } = useAuth();
   const canUpdate = can('EMPLOYEE_UPDATE');
   const canSeePay = canUpdate || can('PAYROLL_PROCESS');
   const canReadRoles = can('ROLE_READ');
   const canManageRoles = can('ROLE_MANAGE');
   const [emp, setEmp] = useState(null);
+  // Your own record is the admin's to change (the server refuses it), so the actions are not offered.
+  const mayChange = canUpdate && (isAdmin || emp?.userId !== username);
   const [team, setTeam] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reassignOpen, setReassignOpen] = useState(false);
@@ -319,7 +321,7 @@ export default function EmployeeDetail() {
         title={emp.employeeName}
         subtitle={[emp.employeeCode, emp.userId].filter(Boolean).join(' · ')}
         actions={
-          canUpdate && (
+          mayChange && (
             <>
               <Button
                 color="inherit"
@@ -394,7 +396,7 @@ export default function EmployeeDetail() {
                 <Field label="Email" value={emp.email} />
                 <Field label="Phone" value={emp.phone} />
               </Grid>
-              {canUpdate && (
+              {mayChange && (
                 <>
                   <Divider sx={{ my: 2 }} />
                   <Button size="small" onClick={() => setReassignOpen(true)}>
@@ -431,17 +433,17 @@ export default function EmployeeDetail() {
                       color={emp.salaryStructureOverridden ? 'warning' : 'default'}
                       size="small"
                     />
-                    {canUpdate && (
+                    {mayChange && (
                       <Button size="small" startIcon={<TrendingUpRoundedIcon />} onClick={openReviseDialog}>
                         Revise salary
                       </Button>
                     )}
-                    {canUpdate && (
+                    {mayChange && (
                       <Button size="small" startIcon={<EditRoundedIcon />} onClick={openStructureDialog}>
                         Override
                       </Button>
                     )}
-                    {canUpdate && emp.salaryStructureOverridden && (
+                    {mayChange && emp.salaryStructureOverridden && (
                       <Button
                         size="small"
                         color="inherit"

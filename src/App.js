@@ -151,14 +151,19 @@ function App() {
           <Route path="/" element={<RootRedirect />} />
           <Route path="/change-password" element={<ChangePassword />} />
 
-          {/* Open to every authenticated role - self-service pages with no
-              navConfig visibleFor restriction of their own. */}
-          <Route path="/attendance/me" element={<MyAttendance />} />
-          <Route path="/salary-slips/me" element={<MySalarySlip />} />
+          {/* Self-service pages: open to every employee, closed to the admin
+              login, which is a company account with no attendance, leave or
+              payslip of its own. */}
+          <Route element={<RequireAccess rule={ACCESS.workspace} />}>
+            <Route path="/attendance/me" element={<MyAttendance />} />
+            <Route path="/salary-slips/me" element={<MySalarySlip />} />
+          </Route>
           <Route path="/leave" element={<LeaveLayout />}>
-            <Route index element={<LeaveApply />} />
-            <Route path="apply" element={<LeaveApply />} />
-            <Route path="my" element={<MyLeaves />} />
+            <Route element={<RequireAccess rule={ACCESS.workspace} />}>
+              <Route index element={<LeaveApply />} />
+              <Route path="apply" element={<LeaveApply />} />
+              <Route path="my" element={<MyLeaves />} />
+            </Route>
             <Route path="calendar" element={<LeaveCalendar />} />
             <Route path="balances" element={<LeaveBalances />} />
 

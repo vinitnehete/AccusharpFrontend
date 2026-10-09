@@ -20,8 +20,11 @@ import { ATTENDANCE_STATUS_COLOR } from '../../constants/enums';
 import { ruleLabel } from '../../constants/attendancePolicy';
 import { useActingAs } from '../../context/ActingAsContext';
 import { formatHours } from '../../utils/hours';
+import DayChip from './DayChip';
+import { attentionCount, isMonthInProgress, splitDays } from './runningMonth';
+import { sandwichMark } from './sandwichMark';
 
-const columns = [
+const buildColumns = (today, sandwichDates) => [
   {
     field: 'attendanceDate',
     headerName: 'Date',
@@ -49,8 +52,17 @@ const columns = [
   {
     field: 'status',
     headerName: 'Status',
-    width: 140,
-    renderCell: (params) => <StatusChip value={params.value} colorMap={ATTENDANCE_STATUS_COLOR} />,
+    width: 200,
+    renderCell: (params) => (
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', height: '100%' }}>
+        <DayChip day={params.row} today={today} />
+        {sandwichDates.has(params.row.attendanceDate) && (
+          <Typography variant="caption" color="error.main">
+            Unpaid (sandwich)
+          </Typography>
+        )}
+      </Stack>
+    ),
   },
 ];
 
@@ -99,7 +111,7 @@ function PolicyOutcomes({ data, dense = false }) {
 // only on the plain-employee view (see below) - a DataGrid forces horizontal
 // scrolling on a phone, which the redesign brief explicitly asks to avoid
 // for shop-floor / employee-facing screens.
-function DayRow({ day }) {
+function DayRow({ day, today, sandwich = false }) {
   return (
     <Stack
       direction="row"
@@ -131,8 +143,13 @@ function DayRow({ day }) {
             {formatHours(day.workingHours)}{day.overtimeHours > 0 ? ` · ${formatHours(day.overtimeHours)} OT` : ''}
           </Typography>
         )}
+        {sandwich && (
+          <Typography variant="caption" color="error.main" sx={{ display: 'block' }}>
+            Unpaid (sandwich)
+          </Typography>
+        )}
       </Box>
-      <StatusChip value={day.status} colorMap={ATTENDANCE_STATUS_COLOR} />
+      <DayChip day={day} today={today} />
     </Stack>
   );
 }
@@ -159,6 +176,16 @@ export default function MyAttendance() {
   }, [userId, month]);
 
   const monthLabel = month.format('MMMM YYYY');
+  const today = dayjs().format('YYYY-MM-DD');
+  // Staff whose work policy leaves attendance untracked have no month to show: the
+  // server would hand back a month of "absent" for people nobody expected to punch.
+  // A server that predates the flag does not send it, which reads as tracked.
+  const tracked = data?.attendanceTracked !== false;
+  const inProgress = data ? isMonthInProgress(data.month || month, today) : false;
+  const { past, upcoming } = splitDays(data?.days, today);
+  const attention = attentionCount(data?.days, today);
+  const sandwich = sandwichMark(data?.sandwich);
+  const columns = useMemo(() => buildColumns(today, sandwich?.dates ?? new Set()), [today, sandwich]);
   const presentPct = useMemo(() => {
     if (!data?.workingDays) return 0;
     return Math.min(100, Math.round(((data.presentDays || 0) / data.workingDays) * 100));
@@ -199,6 +226,15 @@ export default function MyAttendance() {
               Your attendance will appear here once it has been recorded.
             </Typography>
           </Card>
+        ) : !tracked ? (
+          <Card sx={{ p: 4, textAlign: 'center' }}>
+            <Typography variant="subtitle1" sx={{ mb: 0.5 }}>
+              Your attendance is not recorded
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              There is nothing to show here. Your leave and salary slip are in the other pages.
+            </Typography>
+          </Card>
         ) : (
           <>
             <Card sx={{ mb: 2.5 }} data-testid="attendance-summary">
@@ -231,10 +267,16 @@ export default function MyAttendance() {
               </Grid>
             </Grid>
 
-            {data.invalidPunches > 0 && (
+            {attention > 0 && (
               <Alert severity="warning" sx={{ mb: 2.5 }} data-testid="attendance-needs-attention">
-                {data.invalidPunches} day{data.invalidPunches > 1 ? 's' : ''} {data.invalidPunches > 1 ? 'need' : 'needs'} attention —
+                {attention} day{attention > 1 ? 's' : ''} {attention > 1 ? 'need' : 'needs'} attention —
                 contact HR to fix a missed punch before payroll runs.
+              </Alert>
+            )}
+
+            {sandwich && (
+              <Alert severity="warning" sx={{ mb: 2.5 }} data-testid="attendance-sandwich">
+                {sandwich.text}
               </Alert>
             )}
 
@@ -245,15 +287,30 @@ export default function MyAttendance() {
                 <Typography variant="subtitle1" sx={{ px: { xs: 2, sm: 1.5 }, pt: { xs: 2, sm: 1.5 }, pb: 1 }}>
                   Day by day
                 </Typography>
-                {(data.days || []).length === 0 ? (
+                {past.length === 0 ? (
                   <Typography variant="body2" color="text.secondary" sx={{ px: { xs: 2, sm: 1.5 }, pb: 2.5 }}>
                     No days recorded yet.
                   </Typography>
                 ) : (
-                  data.days.map((d) => <DayRow key={d.attendanceDate} day={d} />)
+                  past.map((d) => (
+                    <DayRow key={d.attendanceDate} day={d} today={today} sandwich={!!sandwich?.dates.has(d.attendanceDate)} />
+                  ))
                 )}
               </CardContent>
             </Card>
+
+            {upcoming.length > 0 && (
+              <Card sx={{ mt: 2.5 }}>
+                <CardContent sx={{ p: { xs: 0, sm: 1 } }}>
+                  <Typography variant="subtitle1" sx={{ px: { xs: 2, sm: 1.5 }, pt: { xs: 2, sm: 1.5 }, pb: 1 }}>
+                    Coming up
+                  </Typography>
+                  {upcoming.map((d) => (
+                    <DayRow key={d.attendanceDate} day={d} today={today} />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </Box>
@@ -275,6 +332,11 @@ export default function MyAttendance() {
 
       {!loading && !data ? (
         <Alert severity="info">No attendance data for this period yet.</Alert>
+      ) : !loading && !tracked ? (
+        <Alert severity="info">
+          This person's attendance is not tracked - their work policy expects no punches - so there is nothing to
+          review here.
+        </Alert>
       ) : (
         <>
           <Grid container spacing={2.5} sx={{ mb: 3 }}>
@@ -288,7 +350,13 @@ export default function MyAttendance() {
               <StatCard loading={loading} label="Leave days" value={data?.leaveDays} accent="info.main" />
             </Grid>
             <Grid size={{ xs: 6, sm: 3 }}>
-              <StatCard loading={loading} label="LOP days" value={data?.lopDays} accent="error.main" />
+              {/* While the month runs the server counts every day to come as unpaid. */}
+              <StatCard
+                loading={loading}
+                label="LOP days"
+                value={inProgress ? '—' : data?.lopDays}
+                accent="error.main"
+              />
             </Grid>
             <Grid size={{ xs: 6, sm: 3 }}>
               <StatCard loading={loading} label="Late count" value={data?.lateCount} accent="warning.main" />
@@ -297,7 +365,7 @@ export default function MyAttendance() {
               <StatCard loading={loading} label="Early exits" value={data?.earlyExitCount} accent="warning.main" />
             </Grid>
             <Grid size={{ xs: 6, sm: 3 }}>
-              <StatCard loading={loading} label="Invalid punches" value={data?.invalidPunches} accent="error.main" />
+              <StatCard loading={loading} label="Invalid punches" value={attention} accent="error.main" />
             </Grid>
             <Grid size={{ xs: 6, sm: 3 }}>
               <StatCard loading={loading} label="Overtime hours" value={formatHours(data?.overtimeHours)} accent="secondary.main" />
@@ -327,10 +395,20 @@ export default function MyAttendance() {
               </Grid>
             )}
           </Grid>
-          {data?.invalidPunches > 0 && (
+          {inProgress && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: -1.5, mb: 2 }}>
+              LOP days are counted once the month is over.
+            </Typography>
+          )}
+          {attention > 0 && (
             <Alert severity="warning" sx={{ mb: 2 }} data-testid="attendance-needs-attention">
-              {data.invalidPunches} day(s) have a single punch only — review and correct them in the
+              {attention} day(s) have a single punch only — review and correct them in the
               Attendance Console before payroll is generated.
+            </Alert>
+          )}
+          {sandwich && (
+            <Alert severity="warning" sx={{ mb: 2 }} data-testid="attendance-sandwich">
+              {sandwich.text}
             </Alert>
           )}
           <PolicyOutcomes data={data} />
@@ -341,7 +419,7 @@ export default function MyAttendance() {
                 Day-by-day
               </Typography>
               <DataTable
-                rows={(data?.days || []).map((d, i) => ({ id: i, ...d }))}
+                rows={[...past, ...upcoming].map((d, i) => ({ id: i, ...d }))}
                 columns={columns}
                 loading={loading}
                 height={480}

@@ -8,8 +8,9 @@ import { ACCESS } from '../../constants/access';
 // Same ACCESS rules the routes are guarded by, so a tab is only ever offered
 // when the page behind it will open. Leave rules live on the Rules page.
 export const leaveTabs = (canAccess) => [
-  { label: 'Apply', path: '/leave/apply' },
-  { label: 'My Leaves', path: '/leave/my' },
+  ...(canAccess(ACCESS.workspace)
+    ? [{ label: 'Apply', path: '/leave/apply' }, { label: 'My Leaves', path: '/leave/my' }]
+    : []),
   ...(canAccess(ACCESS.leaveApprovals) ? [{ label: 'Pending Approvals', path: '/leave/approvals' }] : []),
   ...(canAccess(ACCESS.leaveAll) ? [{ label: 'All Leaves', path: '/leave/all' }] : []),
   { label: 'Calendar', path: '/leave/calendar' },

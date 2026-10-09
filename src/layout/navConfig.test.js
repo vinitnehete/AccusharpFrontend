@@ -44,6 +44,25 @@ describe('sidebar visibility', () => {
     expect(labels(visibleNav(navConfig, session('ADMIN')))).toEqual(expect.arrayContaining(['Custom Roles', 'Audit Log']));
   });
 
+  it('gives an admin no personal workspace, and keeps everything else they run the company with', () => {
+    const visible = visibleNav(navConfig, session('ADMIN'));
+    const shown = labels(visible);
+
+    expect(sectionLabels(visible)).not.toContain('My Workspace');
+    expect(shown).not.toContain('My Attendance');
+    expect(shown).not.toContain('My Salary Slip');
+    expect(shown).not.toContain('Apply Leave');
+    expect(shown).toEqual(expect.arrayContaining([
+      'Dashboard', 'Employees', 'All Leaves', 'Payroll', 'Rules', 'Reports', 'Custom Roles', 'Audit Log',
+    ]));
+  });
+
+  it('still gives HR, a supervisor and an employee their own workspace', () => {
+    for (const role of ['HR', 'SUPERVISOR', 'EMPLOYEE']) {
+      expect(sectionLabels(visibleNav(navConfig, session(role)))).toContain('My Workspace');
+    }
+  });
+
   it('opens exactly what a custom role grants, on top of the fixed role', () => {
     const shown = labels(visibleNav(navConfig, session('EMPLOYEE', ['ATTENDANCE_CORRECT', 'REPORT_READ'])));
 

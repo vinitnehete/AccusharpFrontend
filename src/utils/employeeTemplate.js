@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { ASSIGNABLE_ROLE } from '../constants/enums';
 
 // Mirrors EmployeeCsvParser.java's expected header exactly (recordStatus
 // included - the parser accepts it even though the old CSV template omitted
@@ -64,7 +65,7 @@ const EXAMPLE_ROW = {
 
 const STATUS_OPTIONS = ['PERMANENT', 'DAY_WISE', 'CONTRACT', 'INTERN'];
 const RECORD_STATUS_OPTIONS = ['ACTIVE', 'INACTIVE'];
-const ROLE_OPTIONS = ['ADMIN', 'HR', 'SUPERVISOR', 'EMPLOYEE'];
+const ROLE_OPTIONS = ASSIGNABLE_ROLE;
 const GENDER_OPTIONS = ['MALE', 'FEMALE'];
 const BOOLEAN_OPTIONS = ['true', 'false'];
 

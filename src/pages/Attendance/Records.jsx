@@ -25,17 +25,18 @@ import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { useSnackbar } from 'notistack';
 import PageHeader from '../../components/PageHeader';
 import DataTable from '../../components/DataTable';
-import StatusChip from '../../components/StatusChip';
 import EmployeePicker from '../../components/EmployeePicker';
 import attendanceApi from '../../api/attendance';
 import shiftsApi from '../../api/shifts';
-import { ATTENDANCE_STATUS, ATTENDANCE_STATUS_COLOR } from '../../constants/enums';
+import { ATTENDANCE_STATUS } from '../../constants/enums';
 import { useActingAs } from '../../context/ActingAsContext';
 import { formatHours } from '../../utils/hours';
 import { useAuth } from '../../context/AuthContext';
 import { downloadCsv } from '../../utils/csv';
 import { RECORD_CSV_COLUMNS, recordsCsvFilename } from './recordsExport';
 import { sandwichMark } from './sandwichMark';
+import DayChip from './DayChip';
+import { withoutDaysToCome } from './runningMonth';
 
 function CorrectionDialog({ open, record, userId, onClose, onSaved }) {
   const { enqueueSnackbar } = useSnackbar();
@@ -250,6 +251,9 @@ export default function Records() {
   const [month, setMonth] = useState(dayjs());
   const [rows, setRows] = useState([]);
   const [sandwich, setSandwich] = useState(null);
+  // The person's work policy leaves attendance untracked: generation skips them, so
+  // "generate attendance first" would send HR on an errand that never ends.
+  const [untracked, setUntracked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [correcting, setCorrecting] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -258,6 +262,7 @@ export default function Records() {
     if (!userId || !month) {
       setRows([]);
       setSandwich(null);
+      setUntracked(false);
       return;
     }
     setLoading(true);
@@ -269,8 +274,14 @@ export default function Records() {
     // The days a sandwich rule made unpaid - their own status does not change.
     attendanceApi
       .monthly(userId, month.format('YYYY-MM'))
-      .then((summary) => setSandwich(sandwichMark(summary.sandwich)))
-      .catch(() => setSandwich(null));
+      .then((summary) => {
+        setSandwich(sandwichMark(summary.sandwich));
+        setUntracked(summary.attendanceTracked === false);
+      })
+      .catch(() => {
+        setSandwich(null);
+        setUntracked(false);
+      });
   };
 
   useEffect(load, [userId, month]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -297,6 +308,17 @@ export default function Records() {
       .catch(() => {})
       .finally(() => setBusy(false));
   };
+
+  // Generating a month that is still running stores every day of it, the days to
+  // come as red ABSENT rows with an edit button. The table lists what has
+  // happened (and the coming days that already mean something); the CSV export
+  // below still takes every stored row, because that is data, not a view.
+  const today = dayjs().format('YYYY-MM-DD');
+  const shown = withoutDaysToCome(rows, today);
+  // One punch is INVALID_PUNCH on a day that is over - and on the day still going on.
+  // A month that has not begun: nothing in it has happened and nobody has touched a day.
+  const notStarted = rows.length > 0 && rows.every((r) => r.attendanceDate > today && r.recordStatus !== 'MANUAL' && !r.locked);
+  const lonePunches = rows.filter((r) => r.status === 'INVALID_PUNCH' && r.attendanceDate !== today).length;
 
   const columns = [
     {
@@ -329,7 +351,7 @@ export default function Records() {
       width: 210,
       renderCell: (params) => (
         <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', height: '100%' }}>
-          <StatusChip value={params.value} colorMap={ATTENDANCE_STATUS_COLOR} />
+          <DayChip day={params.row} today={today} />
           {sandwich?.dates.has(params.row.attendanceDate) && (
             <Chip size="small" color="warning" variant="outlined" label="Unpaid (sandwich)" />
           )}
@@ -380,8 +402,8 @@ export default function Records() {
   // summary without adding the day rows up by hand. @mui/x-data-grid (no
   // -pro license here) has no row-pinning/footer-aggregation of its own, so
   // this renders as a line under the table instead of a row inside it.
-  const totalWorkingHours = rows.reduce((sum, r) => sum + Number(r.workingHours || 0), 0);
-  const totalOvertimeHours = rows.reduce((sum, r) => sum + Number(r.overtimeHours || 0), 0);
+  const totalWorkingHours = shown.reduce((sum, r) => sum + Number(r.workingHours || 0), 0);
+  const totalOvertimeHours = shown.reduce((sum, r) => sum + Number(r.overtimeHours || 0), 0);
 
   return (
     <>
@@ -423,14 +445,23 @@ export default function Records() {
       {!userId ? (
         <Alert severity="info">Pick an employee to see their attendance records.</Alert>
       ) : rows.length === 0 && !loading ? (
-        <Alert severity="info">
-          No records for this month yet — generate attendance first from the Generate tab.
-        </Alert>
+        untracked ? (
+          <Alert severity="info">
+            This person&apos;s attendance is not tracked - their work policy expects no punches - so there is
+            nothing to generate or correct.
+          </Alert>
+        ) : (
+          <Alert severity="info">
+            No records for this month yet — generate attendance first from the Generate tab.
+          </Alert>
+        )
+      ) : notStarted && !loading ? (
+        <Alert severity="info">This month has not started yet - its days will appear here as they pass.</Alert>
       ) : (
         <>
-          {rows.filter((r) => r.status === 'INVALID_PUNCH').length > 0 && (
+          {lonePunches > 0 && (
             <Alert severity="warning" sx={{ mb: 2 }} data-testid="attendance-warning">
-              {rows.filter((r) => r.status === 'INVALID_PUNCH').length} day(s) have a single punch
+              {lonePunches} day(s) have a single punch
               only — correct them below before payroll is generated.
             </Alert>
           )}
@@ -439,7 +470,7 @@ export default function Records() {
               {sandwich.text}
             </Alert>
           )}
-          <DataTable rows={rows} columns={columns} loading={loading} height={560} density="compact" />
+          <DataTable rows={shown} columns={columns} loading={loading} height={560} density="compact" />
           <Stack
             direction="row"
             spacing={3}

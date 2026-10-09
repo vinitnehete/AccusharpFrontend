@@ -26,7 +26,7 @@ export default function EmployeeList() {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const { reloadEmployees } = useActingAs();
-  const { can } = useAuth();
+  const { can, username, isAdmin } = useAuth();
   const canCreate = can('EMPLOYEE_CREATE');
   const canUpdate = can('EMPLOYEE_UPDATE');
   const canDelete = can('EMPLOYEE_DELETE');
@@ -107,8 +107,11 @@ export default function EmployeeList() {
           sortable: false,
           filterable: false,
           width: 90,
-          // The buttons act on their own; the click must not also open the row.
-          renderCell: ({ row }) => (
+          renderCell: ({ row }) => {
+            // Your own record is the admin's to change - the server refuses it, so no buttons on your own row.
+            if (row.userId === username && !isAdmin) return null;
+            // The buttons act on their own; the click must not also open the row.
+            return (
             <Stack direction="row" spacing={0.5} onClick={(e) => e.stopPropagation()}>
               {canUpdate && (
                 <Tooltip title="Edit">
@@ -133,7 +136,8 @@ export default function EmployeeList() {
                 </Tooltip>
               )}
             </Stack>
-          ),
+            );
+          },
         },
       ]
       : []),
