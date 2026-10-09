@@ -19,11 +19,8 @@ const emptyForm = {
   phone: '',
   companyEmail: '',
   adminUserId: '',
-  adminEmployeeCode: '',
   adminName: '',
   adminEmail: '',
-  adminGrossSalary: '',
-  adminPfBasic: '',
 };
 
 export default function OnboardCompany() {
@@ -35,14 +32,7 @@ export default function OnboardCompany() {
   const set = (name, value) => setForm((prev) => ({ ...prev, [name]: value }));
 
   const requiredOk = useMemo(
-    () =>
-      form.companyCode &&
-      form.companyName &&
-      form.adminUserId &&
-      form.adminEmployeeCode &&
-      form.adminName &&
-      form.adminGrossSalary !== '' &&
-      form.adminPfBasic !== '',
+    () => form.companyCode && form.companyName && form.adminUserId && form.adminName,
     [form]
   );
 
@@ -56,11 +46,8 @@ export default function OnboardCompany() {
         phone: form.phone || null,
         companyEmail: form.companyEmail || null,
         adminUserId: form.adminUserId,
-        adminEmployeeCode: form.adminEmployeeCode,
         adminName: form.adminName,
         adminEmail: form.adminEmail || null,
-        adminGrossSalary: form.adminGrossSalary,
-        adminPfBasic: form.adminPfBasic,
       })
       .then((res) => {
         enqueueSnackbar('Company onboarded successfully', { variant: 'success' });
@@ -75,7 +62,7 @@ export default function OnboardCompany() {
     <>
       <PageHeader
         title="Onboard Company"
-        subtitle="Creates a company and its first ADMIN-role employee together, atomically."
+        subtitle="Creates a company and its admin account together, atomically."
         actions={
           <Button variant="contained" onClick={handleSubmit} disabled={!requiredOk || saving}>
             Onboard company
@@ -84,8 +71,9 @@ export default function OnboardCompany() {
       />
 
       <Alert severity="info" sx={{ mb: 2.5 }}>
-        A bare company has no employees, and therefore nobody able to create one - this endpoint
-        creates the company and its first admin together, with a one-time temporary password.
+        A bare company has nobody able to add its staff - this creates the company and its admin
+        account together, with a one-time temporary password. The admin is a company account, not
+        an employee: it has no salary or employee code, and no workspace of its own.
       </Alert>
 
       <Card sx={{ mb: 2.5 }}>
@@ -145,7 +133,7 @@ export default function OnboardCompany() {
       </Card>
 
       <Card sx={{ mb: 2.5 }}>
-        <CardHeader title={<Typography variant="subtitle1">First admin</Typography>} />
+        <CardHeader title={<Typography variant="subtitle1">Admin account</Typography>} />
         <CardContent sx={{ pt: 0 }}>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 4 }}>
@@ -156,16 +144,6 @@ export default function OnboardCompany() {
                 required
                 value={form.adminUserId}
                 onChange={(e) => set('adminUserId', e.target.value)}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Employee code"
-                required
-                value={form.adminEmployeeCode}
-                onChange={(e) => set('adminEmployeeCode', e.target.value)}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 4 }}>
@@ -186,26 +164,6 @@ export default function OnboardCompany() {
                 label="Email"
                 value={form.adminEmail}
                 onChange={(e) => set('adminEmail', e.target.value)}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Gross salary"
-                required
-                value={form.adminGrossSalary}
-                onChange={(e) => set('adminGrossSalary', e.target.value.replace(/[^0-9.]/g, ''))}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                fullWidth
-                size="small"
-                label="PF basic"
-                required
-                value={form.adminPfBasic}
-                onChange={(e) => set('adminPfBasic', e.target.value.replace(/[^0-9.]/g, ''))}
               />
             </Grid>
           </Grid>

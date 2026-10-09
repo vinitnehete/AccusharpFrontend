@@ -33,6 +33,16 @@ describe('area access rules', () => {
     expect(isAllowed(ACCESS.rules, session('EMPLOYEE', ['WORK_POLICY_READ']))).toBe(true);
   });
 
+  it('gives everyone but the admin a personal workspace - the admin login is a company account, not an employee', () => {
+    expect(isAllowed(ACCESS.workspace, session('EMPLOYEE'))).toBe(true);
+    expect(isAllowed(ACCESS.workspace, session('SUPERVISOR'))).toBe(true);
+    expect(isAllowed(ACCESS.workspace, session('HR'))).toBe(true);
+    expect(isAllowed(ACCESS.workspace, session('ADMIN'))).toBe(false);
+    // What the admin keeps is untouched: the workspace rule takes nothing else away.
+    expect(isAllowed(ACCESS.employees, session('ADMIN'))).toBe(true);
+    expect(isAllowed(ACCESS.payroll, session('ADMIN'))).toBe(true);
+  });
+
   it('lets nobody in without a session', () => {
     expect(isAllowed(ACCESS.reports, { role: null, permissions: [] })).toBe(false);
   });

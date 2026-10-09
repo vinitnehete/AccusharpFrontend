@@ -93,6 +93,8 @@ export default function PendingApprovals() {
   const [hrQueue, setHrQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialog, setDialog] = useState(null);
+  // Your own leave is decided by someone else - the admin, or your supervisor - never by you.
+  const isOwn = (row) => row.userId === actingAs?.userId;
 
   const load = () => {
     if (!actingAs) return;
@@ -137,6 +139,8 @@ export default function PendingApprovals() {
     },
   ];
 
+  const notYours = <Typography variant="caption" color="text.secondary">Not yours to decide</Typography>;
+
   const supervisorColumns = [
     ...baseColumns,
     {
@@ -144,8 +148,8 @@ export default function PendingApprovals() {
       headerName: '',
       sortable: false,
       filterable: false,
-      width: 100,
-      renderCell: (params) => (
+      width: 170,
+      renderCell: (params) => isOwn(params.row) ? notYours : (
         <Stack direction="row" spacing={0.5}>
           <Button size="small" startIcon={<CheckRoundedIcon />} onClick={() => setDialog({ action: 'supervisor-approve', target: params.row })}>
             Endorse
@@ -165,8 +169,8 @@ export default function PendingApprovals() {
       headerName: '',
       sortable: false,
       filterable: false,
-      width: 100,
-      renderCell: (params) => (
+      width: 170,
+      renderCell: (params) => isOwn(params.row) ? notYours : (
         <Stack direction="row" spacing={0.5}>
           <Button size="small" startIcon={<CheckRoundedIcon />} onClick={() => setDialog({ action: 'approve', target: params.row })}>
             Approve

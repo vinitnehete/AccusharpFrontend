@@ -25,7 +25,7 @@ import { useSnackbar } from 'notistack';
 import PageHeader from '../../components/PageHeader';
 import EmployeePicker from '../../components/EmployeePicker';
 import TempPasswordDialog from '../../components/TempPasswordDialog';
-import { EMPLOYEE_STATUS, ROLE, RECORD_STATUS, GENDER, DAYS_OF_WEEK, labelize } from '../../constants/enums';
+import { EMPLOYEE_STATUS, ROLE, ASSIGNABLE_ROLE, RECORD_STATUS, GENDER, DAYS_OF_WEEK, labelize } from '../../constants/enums';
 import employeesApi from '../../api/employees';
 import companiesApi from '../../api/companies';
 import departmentsApi from '../../api/departments';
@@ -97,7 +97,7 @@ export default function EmployeeForm() {
   const isEdit = !!id;
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
-  const { reloadEmployees, isAdmin } = useActingAs();
+  const { reloadEmployees } = useActingAs();
 
   const [form, setForm] = useState(emptyForm);
   const [companies, setCompanies] = useState([]);
@@ -539,9 +539,9 @@ export default function EmployeeForm() {
                 required
                 value={form.role}
                 onChange={(e) => set('role', e.target.value)}
-                helperText={!isAdmin ? 'Only an ADMIN can grant the ADMIN role' : ' '}
+                helperText="A company has one admin, made at onboarding"
               >
-                {ROLE.filter((r) => r !== 'ADMIN' || isAdmin).map((r) => (
+                {(form.role === 'ADMIN' ? ROLE : ASSIGNABLE_ROLE).map((r) => (
                   <MenuItem key={r} value={r}>
                     {labelize(r)}
                   </MenuItem>

@@ -9,8 +9,12 @@
 // director, every team below them) or SCOPE_COMPANY (HR/ADMIN).
 
 const anyOf = (...permissions) => ({ permissions });
+// Every role but one. The ADMIN login is a company account, not an employee: it
+// has no attendance, leave or payslip of its own, so it gets no personal workspace.
+const notFor = (role) => ({ notFor: role });
 
 export const ACCESS = {
+  workspace: notFor('ADMIN'),
   dashboard: anyOf('DASHBOARD_READ'),
   team: anyOf('SCOPE_DIRECT_REPORTS', 'SCOPE_ALL_REPORTS', 'SCOPE_COMPANY'),
   leaveApprovals: anyOf('LEAVE_SUPERVISOR_APPROVE', 'LEAVE_APPROVE'),
@@ -54,5 +58,7 @@ export const ACCESS = {
 };
 
 // No rule means open to every signed-in user.
-export const isAllowed = (rule, { permissions = [] } = {}) =>
-  !rule || rule.permissions.some((code) => permissions.includes(code));
+export const isAllowed = (rule, { permissions = [], role } = {}) =>
+  !rule ||
+  ((!rule.permissions || rule.permissions.some((code) => permissions.includes(code))) &&
+    (!rule.notFor || rule.notFor !== role));

@@ -4,6 +4,9 @@ export const GENDER = ['MALE', 'FEMALE'];
 
 export const ROLE = ['ADMIN', 'HR', 'SUPERVISOR', 'EMPLOYEE'];
 
+// A company has one admin, made when it is onboarded: ADMIN is never a role to give someone.
+export const ASSIGNABLE_ROLE = ROLE.filter((role) => role !== 'ADMIN');
+
 export const RECORD_STATUS = ['ACTIVE', 'INACTIVE'];
 
 export const LEAVE_TYPE = ['CASUAL_LEAVE', 'SICK_LEAVE', 'EARNED_LEAVE', 'LEAVE_WITHOUT_PAY'];

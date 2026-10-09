@@ -25,9 +25,11 @@ const meera = {
   recordStatus: 'ACTIVE',
 };
 
-const renderList = (permissions = ['EMPLOYEE_UPDATE', 'EMPLOYEE_DELETE']) => {
-  useAuth.mockReturnValue({ can: (code) => permissions.includes(code) });
-  employeesApi.list.mockResolvedValue([meera]);
+const nikhil = { ...meera, id: 8, userId: 'EMP008', employeeName: 'Nikhil Rao', role: 'EMPLOYEE', supervisorName: null };
+
+const renderList = (permissions = ['EMPLOYEE_UPDATE', 'EMPLOYEE_DELETE'], session = {}, rows = [meera]) => {
+  useAuth.mockReturnValue({ can: (code) => permissions.includes(code), ...session });
+  employeesApi.list.mockResolvedValue(rows);
   render(<EmployeeList />);
 };
 
@@ -59,6 +61,23 @@ describe('Employees list', () => {
 
     expect(mockNavigate).toHaveBeenCalledTimes(1);
     expect(mockNavigate).toHaveBeenCalledWith('/employees/7/edit');
+  });
+
+  it("offers HR no edit or deactivate on their own row, but on everyone else's", async () => {
+    renderList(['EMPLOYEE_UPDATE', 'EMPLOYEE_DELETE'], { username: 'HR001', isAdmin: false }, [meera, nikhil]);
+
+    expect(await screen.findByText('Nikhil Rao')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit Meera Joshi' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Deactivate Meera Joshi' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit Nikhil Rao' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Deactivate Nikhil Rao' })).toBeInTheDocument();
+  });
+
+  it('gives an admin edit and deactivate on every row', async () => {
+    renderList(['EMPLOYEE_UPDATE', 'EMPLOYEE_DELETE'], { username: 'HR001', isAdmin: true }, [meera, nikhil]);
+
+    expect(await screen.findByRole('button', { name: 'Edit Meera Joshi' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Deactivate Meera Joshi' })).toBeInTheDocument();
   });
 
   it('offers no edit or deactivate without the permissions', async () => {

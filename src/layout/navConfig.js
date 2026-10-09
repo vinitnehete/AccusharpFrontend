@@ -22,7 +22,7 @@ import { ACCESS, isAllowed } from '../constants/access';
 
 // Each item names the ACCESS rule that opens it - the same rule its route is
 // guarded by in App.js, so the sidebar never offers a page the router refuses.
-// An item with no rule is open to everyone signed in to a company.
+// An item (or a whole section) with no rule is open to everyone signed in to a company.
 const navConfig = [
   {
     label: 'Overview',
@@ -34,6 +34,8 @@ const navConfig = [
   },
   {
     label: 'My Workspace',
+    // Not for the admin login - a company account has no attendance, leave or payslip of its own.
+    access: ACCESS.workspace,
     items: [
       { label: 'My Attendance', path: '/attendance/me', icon: EventAvailableRoundedIcon },
       { label: 'Apply Leave', path: '/leave/apply', icon: EditCalendarRoundedIcon },
@@ -155,6 +157,7 @@ export const platformNavConfig = [
 // The sections and items this session may open; a section left empty is dropped.
 export const visibleNav = (config, session) =>
   config
+    .filter((section) => isAllowed(section.access, session))
     .map((section) => ({ ...section, items: section.items.filter((item) => isAllowed(item.access, session)) }))
     .filter((section) => section.items.length > 0);
 

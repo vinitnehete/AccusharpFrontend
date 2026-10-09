@@ -32,8 +32,8 @@ const sunil = {
   weekOffDays: ['SUNDAY'],
 };
 
-const renderAs = (permissions) => {
-  useAuth.mockReturnValue({ can: (code) => permissions.includes(code) });
+const renderAs = (permissions, session = {}) => {
+  useAuth.mockReturnValue({ can: (code) => permissions.includes(code), ...session });
   render(
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <EmployeeDetail />
@@ -66,6 +66,34 @@ describe('Employee profile', () => {
     expect(await screen.findByText('Salary structure')).toBeInTheDocument();
     expect(screen.getByText('Statutory & bank details')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /reassign supervisor/i })).toBeInTheDocument();
+  });
+
+  it("offers HR no way to change their own record - their pay and account are the admin's to change", async () => {
+    // Sunil is HR here, looking at himself.
+    renderAs(['EMPLOYEE_READ', 'EMPLOYEE_UPDATE', 'SCOPE_COMPANY'], { username: 'EMP001', isAdmin: false });
+
+    // Their own pay is still theirs to read...
+    expect(await screen.findByText('Salary structure')).toBeInTheDocument();
+    // ...but nothing on the page writes to it.
+    for (const name of [/^edit$/i, /reset password/i, /reassign supervisor/i, /revise salary/i, /^override$/i]) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
+  });
+
+  it("gives HR every edit action on someone else's record", async () => {
+    renderAs(['EMPLOYEE_READ', 'EMPLOYEE_UPDATE', 'SCOPE_COMPANY'], { username: 'HR001', isAdmin: false });
+
+    expect(await screen.findByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+    for (const name of [/reset password/i, /reassign supervisor/i, /revise salary/i, /^override$/i]) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    }
+  });
+
+  it('lets an admin change any record, even one that happens to be their own username', async () => {
+    renderAs(['EMPLOYEE_READ', 'EMPLOYEE_UPDATE', 'SCOPE_COMPANY'], { username: 'EMP001', isAdmin: true });
+
+    expect(await screen.findByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /revise salary/i })).toBeInTheDocument();
   });
 
   it('shows just the user id when the employee has no code', async () => {

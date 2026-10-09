@@ -6,7 +6,9 @@ credentials export — see §10), 2026-08-17 (employee Category master + Gender/
 UAN/ESIC/bank fields, Employee Master report full CSV export — see §14),
 2026-08-22 (bulk-import CSV header detection, DAY_WISE overtime/earn-wage/
 ESIC formula fixes, human-readable hours + totals in the attendance UI — see
-§15).
+§15), 2026-10-03 (documentation corrected against the code, the mobile client noted,
+and the My Attendance page and the Attendance Records console fixed to read a
+running month honestly — see §21).
 GreyHR-style React frontend for the Accusharp HRMS Spring Boot backend. This doc
 is for whoever picks this up next — what's here, how it's wired, what's
 deliberately missing, and what to do first.
@@ -96,6 +98,14 @@ frontend-side mirror of the same role→permission matrix
 boundary, not a decoration — a plain `EMPLOYEE` genuinely cannot reach
 `EMPLOYEE_CREATE`-gated endpoints, gated or not, because the backend also refuses
 them.
+
+> **Out of date (corrected 2026-10-03):** the paragraph below describes the app
+> as of 2026-08-09. Login and refresh now return `permissions` - the base role's
+> grants plus every custom role - and the app gates navigation and routes on that
+> list (`src/constants/access.js`, `AuthContext.can`), so a custom role does open
+> the screens its permissions allow. Tokens are no longer in `localStorage`: the
+> access token is held in memory and the refresh token is an httpOnly cookie
+> (`api/client.js`). The original text is kept for the history.
 
 **Known, accepted gap**: there is no backend endpoint for a principal to
 discover their own *custom-role*-granted permissions (see §4b) — nav gating is
@@ -244,6 +254,10 @@ onboarding.
 
 ### 4f. Token handling
 
+> **Out of date (2026-10-03):** see the note under §2 - the access token is in
+> memory and the refresh token is an httpOnly cookie, not `localStorage`. The
+> refresh-and-retry-once behaviour below is still how it works.
+
 `localStorage` under one `accusharp.auth` key holds the whole `TokenResponse`.
 `api/client.js`'s request interceptor attaches the access token to every call;
 its response interceptor does a silent refresh-and-retry exactly once on a 401
@@ -357,17 +371,22 @@ normal use, but a token wasn't deliberately expired to watch the refresh fire).
 
 ## 7. Known gaps / things to do before real use
 
-1. **Token storage is `localStorage`, not an httpOnly cookie.** Standard
+1. **Token storage is `localStorage`, not an httpOnly cookie.** *(Fixed since
+   this was written - the refresh token is now an httpOnly cookie and the
+   access token lives in memory only; kept for the history.)* Standard
    tradeoff for a bearer-token SPA with no server-side session — fine for this
    app's threat model today, but worth knowing if XSS resistance becomes a
    requirement later.
-2. **No self-discovery of custom-role-granted permissions** — see §2/§4b. Nav
+2. **No self-discovery of custom-role-granted permissions** *(fixed - login and
+   refresh return `permissions`; see the note under §2)* — see §2/§4b. Nav
    only reflects the base-role matrix; someone with an extra permission via a
    custom role can use it (the API allows it) but won't see a nav item for it.
 3. **Bundle size** (~584KB gzipped) has no code-splitting. Route-based
    `React.lazy()` would help, especially for the Reports module (13 rarely-all-
    used pages bundled together).
-4. **No tests.** Zero unit/integration tests were written for the frontend. The
+4. **No tests.** *(No longer true: 27 test files / 193 tests cover access rules, auth, the
+   employee and approval screens, work policies, the roster grid and more -
+   `npm test`. The auth flow is covered by `context/AuthContext.test.jsx`.)* Zero unit/integration tests were written for the frontend. The
    backend has its own (`Accusharp/TESTING.md`, `./mvnw test`), but the React app
    has none — this now includes zero coverage of the auth flow, which is the
    highest-value thing to add tests for next.
@@ -1902,3 +1921,81 @@ exported role constants, not the item list.
   that needs credentials.
 - Public site, sign-in screen (1440px split panel and 390px stacked), the
   ink footer and closing band all re-checked after the palette change.
+
+---
+
+## 21. The mobile client, My Attendance and Attendance Records (2026-10-03)
+
+A second client now reads this backend: the Muster mobile app (`AccusharpMobile/`,
+Expo), for employees and supervisors. Nothing in this app changed *for* it - the
+only web changes are that My Attendance and the HR Records console now read a
+running month honestly, the way the mobile app does (below). Three things are worth
+knowing when you work on the screens both share.
+
+**New response fields (the web app reads `attendanceTracked` on My Attendance and Records, and ignores the rest)** (additive; see
+`Accusharp/ARCHITECTURE.md`, "Mobile client: the contract it relies on"):
+
+| Field | Where | What the mobile app does with it |
+|---|---|---|
+| `attendanceTracked` | `GET /api/attendance/{id}/monthly` | Shows "your attendance is not recorded" for a person on a `NOT_TRACKED` work policy instead of a month of absences (the web My Attendance page does the same) |
+| `approvalFlow` | every leave response | Says who a request is waiting for; hides requests HR decides directly from a supervisor's queue |
+| `defaulted`, and the `includeUsual=true` option | `GET /api/shift-schedules/{userId}` | Shows a person's own usual shift (the team planner never lists a supervisor's own row) |
+
+**My Attendance reads a running month the way the mobile app does (fixed 2026-10-03).**
+Three things the page used to show as the server sent them are now handled in
+`pages/Attendance/runningMonth.js` (pure, 16 tests; the mobile twin is
+`AccusharpMobile/src/features/attendance.ts` - keep the two in step),
+`DayChip.jsx` (the shared status chip) and `MyAttendance.jsx` (14 tests, clock
+fixed at 3 Oct 2026):
+
+- **A month that is still running is a preview.** The server marks every day that
+  has not happened - and today, until the first punch - `ABSENT` and already counts
+  them in `absentDays`/`lopDays`. The page now lists days up to today, puts the
+  coming days that already mean something (weekly off, holiday, approved leave)
+  under **Coming up** (employee view) or after today in the table (supervisor/HR
+  view), and drops the rest. Today with no punch reads **No punch yet**; today with
+  one punch reads **Day in progress** (the server calls it `INVALID_PUNCH` until
+  the out-punch arrives), and neither counts in "N days need attention". In the
+  supervisor/HR view the **LOP days** card shows a dash with "LOP days are counted
+  once the month is over" until the month ends, because the server's figure counts
+  every day to come. A finished month is shown exactly as sent.
+- **`attendanceTracked: false`** (a `NOT_TRACKED` work policy, e.g. a director on a
+  fixed salary) shows "Your attendance is not recorded" - or, for a supervisor/HR
+  looking at that person, a note that nothing is expected of them - instead of a
+  month of absences. A server that does not send the flag reads as tracked.
+- **Sandwich leave**: the holidays and paid-leave days the rule made unpaid are
+  explained in a notice (`data-testid="attendance-sandwich"`, reusing
+  `sandwichMark.js`) and marked "Unpaid (sandwich)" on their row.
+
+**Attendance Records (the HR console, `Records.jsx`) - same rules, different
+data.** It lists *stored* rows (`GET /attendance/{id}/records`), not the preview, so
+a month nobody has generated shows nothing. But `POST /attendance/generate` stores
+the **whole month with no cut-off at today** (`AttendanceService.generate` runs from
+the 1st to the last day): generate on the 3rd and 24 of 31 stored rows are future
+`ABSENT` days with an edit button each. `Records.jsx` (12 tests) now:
+
+- lists days up to today plus the coming days that already mean something, via
+  `withoutDaysToCome` - which keeps a coming day a person corrected (`MANUAL`) or
+  that payroll locked, because somebody meant it. **Export CSV still takes every
+  stored row**: it is data, not the view.
+- shows today as **No punch yet** / **Day in progress** (`DayChip`), and leaves a lone
+  punch on today out of the "N day(s) have a single punch only" warning - HR would be
+  told to correct a day that has not ended.
+- for a person with `attendanceTracked: false` says "attendance is not tracked ...
+  nothing to generate or correct" instead of "generate attendance first", since
+  generation skips them and would never produce a row. (It reads the flag from the
+  `monthly` call the page already made for the sandwich marks.)
+- for a month that has not begun (every stored day is still to come and untouched)
+  says so rather than listing weekly offs.
+- the sandwich marks and notice are unchanged.
+
+*Not changed:* the **Generate** tab, and the backend rule that generation covers the
+whole month. Whether generating a running month should stop at today is a payroll
+question (payroll needs the full month stored), so it is left as it is; the console
+now simply does not mislead while it is true.
+
+**The company ADMIN** has no personal workspace on either client
+(`ACCESS.workspace = notFor('ADMIN')` here; the mobile app sends it to a "use the
+web app" page). The server signs the admin in as an `EMPLOYEE` principal with every
+permission, so neither client may decide a workspace from permissions alone.
+
