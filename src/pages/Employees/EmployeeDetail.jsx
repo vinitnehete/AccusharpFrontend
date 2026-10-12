@@ -412,6 +412,7 @@ export default function EmployeeDetail() {
                     have to read differently here or somebody will "fix" the
                     wrong one. */}
                 <Field label="Weekly off" value={weekOffLabel(emp.weekOffDays, emp.autoRostersDefaultShift)} />
+                <Field label="Punches biometric" value={emp.attendanceExempt ? 'No — attendance from roster' : 'Yes'} />
                 <Field label="Gender" value={emp.gender ? labelize(emp.gender) : '-'} />
                 <Field
                   label="Joining date"

@@ -33,7 +33,11 @@ export const ACCESS = {
   shifts: anyOf('SHIFT_MANAGE'),
   holidays: anyOf('HOLIDAY_MANAGE'),
   attendanceConsole: anyOf('ATTENDANCE_GENERATE', 'ATTENDANCE_CORRECT', 'ATTENDANCE_UNLOCK'),
+  attendanceBulkUpload: anyOf('ATTENDANCE_CORRECT'),
   payroll: anyOf('PAYROLL_PROCESS'),
+  recoveries: anyOf('RECOVERY_READ', 'RECOVERY_MANAGE'),
+  recoveryManage: anyOf('RECOVERY_MANAGE'),
+  recoveryRead: anyOf('RECOVERY_READ'),
   salarySlips: anyOf('PAYROLL_PROCESS'),
   // Manage codes only; supervisors and employees hold DEPARTMENT_READ and
   // friends just to label records. The rule screens moved to `rules`.

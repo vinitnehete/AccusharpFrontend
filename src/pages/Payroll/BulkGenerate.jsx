@@ -18,9 +18,17 @@ import payrollApi from '../../api/payroll';
 import { downloadCsv } from '../../utils/csv';
 
 // Mirrors PayrollCsvParser.java's expected header exactly.
-const TEMPLATE_COLUMNS = ['employeeId', 'bonus', 'incentive', 'tds', 'advanceDeduction', 'loanDeduction', 'canteen'];
+const TEMPLATE_COLUMNS = [
+  'employeeId', 'bonus', 'incentive', 'tds', 'canteen',
+  'advanceDeduction', 'loanDeduction', 'fine', 'otherDeduction',
+];
+// The four recovery columns are deliberately left blank in the template: blank
+// means "recover whatever this employee's loan/advance/fine ledger schedules",
+// which is the behaviour a bulk run wants. A 0 there would override the
+// schedule and recover nothing - the very bug this file used to ship with.
 const TEMPLATE_EXAMPLE = {
-  employeeId: 'EMP001', bonus: '0', incentive: '0', tds: '0', advanceDeduction: '0', loanDeduction: '0', canteen: '0',
+  employeeId: 'EMP001', bonus: '0', incentive: '0', tds: '0', canteen: '0',
+  advanceDeduction: '', loanDeduction: '', fine: '', otherDeduction: '',
 };
 
 const SUCCEEDED_COLUMNS = [
@@ -78,8 +86,13 @@ export default function BulkGenerate() {
           <Stack spacing={2}>
             <Alert severity="info">
               Expected header (case-insensitive, any order): <code>{TEMPLATE_COLUMNS.join(', ')}</code>. Only{' '}
-              <code>employeeId</code> is required — every amount defaults to zero. <code>month</code>/
-              <code>year</code> below apply to the whole file, not a column.
+              <code>employeeId</code> is required. <code>month</code>/<code>year</code> below apply to the
+              whole file, not a column. <code>bonus</code>, <code>incentive</code>, <code>tds</code> and{' '}
+              <code>canteen</code> default to zero when blank — but a blank{' '}
+              <code>advanceDeduction</code>, <code>loanDeduction</code>, <code>fine</code> or{' '}
+              <code>otherDeduction</code> means &ldquo;recover whatever this employee&apos;s ledger
+              schedules&rdquo;. Write <code>0</code> in one of those only when you mean to skip that
+              instalment for the month.
             </Alert>
             <Grid container spacing={2}>
               <Grid size={{ xs: 6, sm: 3 }}>

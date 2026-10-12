@@ -36,6 +36,9 @@ const SALARY_COLUMNS = [
   { field: 'otherAllowance', required: true },
   { field: 'overtimeEligible', required: false },
   { field: 'weekOffDays', required: false },
+  // Senior staff who are not on the biometric device - their attendance is read
+  // from the roster instead of from punches. See Employee.attendanceExempt.
+  { field: 'attendanceExempt', required: false },
   { field: 'basicDA', required: false },
   { field: 'hra', required: false },
   { field: 'conveyanceAllowance', required: false },
@@ -58,6 +61,7 @@ const EXAMPLE_ROW = {
   // for anyone else.
   // NONE is the explicit "this employee has no weekly off".
   weekOffDays: 'SUNDAY',
+  attendanceExempt: 'false',
   // Left blank so the example row still derives from the salary rule, same as before -
   // fill in all four (never just some) on a row to pin its exact structure instead.
   basicDA: '', hra: '', conveyanceAllowance: '', educationAllowance: '',
@@ -163,6 +167,7 @@ export async function downloadEmployeeTemplate() {
   addDropdown(sheet, 'role', ROLE_OPTIONS);
   addDropdown(sheet, 'gender', GENDER_OPTIONS);
   addDropdown(sheet, 'overtimeEligible', BOOLEAN_OPTIONS);
+  addDropdown(sheet, 'attendanceExempt', BOOLEAN_OPTIONS);
 
   sheet.views = [{ state: 'frozen', ySplit: HEADER_ROW }];
 

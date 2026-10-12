@@ -15,6 +15,11 @@ deliberately missing, and what to do first.
 
 ---
 
+**Current update (2026-10-10):** section 22 records the completed salary override
+fix and the restored loans/recoveries and bulk-attendance frontend. Earlier
+dated notes remain historical; in particular, their "no tests" statements do
+not describe the current application.
+
 ## 1. Quick start
 
 Two servers, no build step needed for dev:
@@ -283,6 +288,7 @@ a successful change — there is no "stay logged in" option, by design.
 | Attendance | `/attendance/me`, `/attendance/generate`, `/attendance/records` |
 | Leave | `/leave/apply`, `/my`, `/approvals`, `/all`, `/calendar`, `/balances`, `/leave/bulk-import` |
 | Payroll | `/payroll/generate`, `/generate-all`, `/list`, `/history` |
+| Loans & Recoveries | `/recoveries/register`, `/recoveries/issue`, `/recoveries/bulk`, `/recoveries/statement` — see §22 |
 | Salary Slips | `/salary-slips`, `/salary-slips/me` |
 | Reports | `/reports` (hub) + 13 sub-routes under `/reports/*` |
 | Contractors | `/contractors/list`, `/workforce`, `/roster`, `/attendance`, `/reports` — see §17 |
@@ -1999,3 +2005,117 @@ now simply does not mislead while it is true.
 web app" page). The server signs the admin in as an `EMPLOYEE` principal with every
 permission, so neither client may decide a workspace from permissions alone.
 
+
+---
+
+## 22. Salary override fix and restored loans/recoveries (2026-10-10)
+
+### 22a. Employee salary structure
+
+`EmployeeDetail.jsx`'s Override dialog now prefills and submits medical allowance,
+other allowance and PF basic alongside Basic + DA, HRA, conveyance and education.
+All seven inputs must be present, numeric and nonnegative; zero is valid. The
+backend already supported the two allowances and now accepts optional PF basic,
+so older four-field API callers retain their previous values.
+
+The salary card and live override dialog display a red error notice when gross
+salary and gross wage differ. It is informational: a valid structure can still
+be saved. Gross wage adds the six allowance components and excludes PF basic.
+The preview rounds each component HALF_UP to paisa before adding, matching the
+backend, and absent totals do not trigger a mismatch. Existing employee edit
+permissions, self-edit restrictions and pay/bank visibility remain in place.
+
+### 22b. Loans, advances, fines and other recoveries
+
+The matching frontend stash has been restored into the current application,
+retaining its existing Rules routes, work policies, weekly-off configuration,
+redesign and salary override fix. `api/recoveries.js` maps the register, employee
+statement, scheduled deductions, issue/update, outside-payroll repayment, waiver,
+cancellation and CSV issue endpoints. Pages live under `pages/Recoveries/`.
+
+- **Register** shows open balances, optionally settled history, and management
+  actions for `RECOVERY_MANAGE` holders.
+- **Issue** accepts an employee, type, amount, installment or tenure, issued date,
+  optional start period, purpose and remarks. It does not require payroll to
+  exist. Past, current and future issued dates are accepted.
+- **Bulk Issue** uploads the same decisions as CSV; required columns are
+  `employeeId,type,principalAmount`. Optional columns are `installmentAmount`,
+  `tenureMonths`, `startMonth`, `startYear`, `issuedOn`, `reason`, `remarks`.
+- **Employee Statement** shows balances, recoveries and their ledger movements.
+  A viewer without `PAY_READ` is bound to their authenticated username and sees
+  no employee picker. A viewer with pay access can select an employee; the API
+  still enforces employee scope.
+
+The HR sidebar entry **Loans & Recoveries** needs `RECOVERY_MANAGE`. **My Loans**
+lives in the personal workspace for `RECOVERY_READ`; the company ADMIN continues
+to have no personal workspace. Recovery routes require read or manage permission,
+and Issue/Bulk routes and tabs require manage permission specifically. The
+permission matrix also mirrors the backend's existing `PAY_READ` code.
+
+Blank start month/year delegates to the backend: loans start the month after
+issuance, other types in the issue month. An explicit start needs both fields
+and cannot precede the issue month; choosing the issue month itself is allowed.
+The form validates month 1–12, year 2000–2100, positive optional installments,
+tenure 1–600 and a valid supplied date. Registering a loan does not rewrite a
+stored payroll snapshot.
+
+### 22c. Payroll, slips and reports
+
+`Payroll/Generate.jsx` prefills advance/loan/fine/other deductions from the
+selected employee's schedule. Blank means use the ledger schedule; explicit
+zero means skip that type for this payroll. Prefills reset when employee or
+period changes, and stale schedule responses cannot apply another employee's
+figures. A failed schedule fetch leaves the fields blank so server scheduling
+remains the default. Generate All and the payroll CSV template use the same
+blank-versus-zero semantics.
+
+Salary rule configuration adds the protected minimum net-pay percentage for
+recoveries. The Generate result, payroll audit/register reports, Full & Final
+report and salary slip expose the restored recovery amounts/balances. The
+salary slip keeps its current styled net-pay panel and displays loan opening,
+recovered and closing balances above it.
+
+### 22d. Biometric exemption and bulk attendance
+
+The restored `attendanceExempt` option means the employee does not punch the
+biometric device: generation derives their attendance from roster instead.
+Employee create/edit, detail and the spreadsheet import template carry it.
+It does not remove weekly-off settings or replace the existing work-policy
+module. A `NOT_TRACKED` work policy still skips generation and rejects bulk
+attendance uploads. Tracked employees with the exemption use roster-based
+days; ordinary employees retain punch-based policy evaluation. An employee
+update that omits the flag or sends `null` preserves it; explicit `false`
+clears it.
+
+Attendance Console adds `/attendance/bulk-upload`. HR can declare one employee's
+date range or upload CSV `userId,fromDate,toDate,status,remarks`; `userId`,
+`fromDate` and remarks are required. The UI requires `ATTENDANCE_CORRECT`, valid
+ordered dates and a reason. Results show applied rows, skipped days and row
+errors; locked payroll, approved leave and nonworking-day skips remain visible.
+Existing attendance policy screens remain on the Rules page.
+
+### 22e. Verification
+
+TDD regressions first reproduced the missing override fields and mismatch notice,
+and then the restored loan frontend's navigation crash, missing self-statement
+scoping and input validation. Additional red regressions reproduced another
+employee's schedule persisting after a failed fetch and a stale response
+overwriting the current employee. Focused component/access/navigation tests now
+pass, including past/current/future loan requests, start-period rules, salary
+rounding, persisted override reload, pay privacy and blank-versus-zero recovery
+payloads.
+
+Commands: `npm test -- --watchAll=false --runInBand` and `npm run build`. The
+current restoration was verified with automated component tests; no new live
+browser or production database verification is claimed by this addendum.
+
+The final integration also keeps untouched recovery prefills scheduled on the
+server, so multiple loans each receive their own instalment. Editing a field
+creates an explicit override; clearing it restores scheduled deductions.
+Pending statement responses are discarded when the employee selection changes
+or clears, in both the statement and issue forms. The custom-role checklist
+includes `PAY_READ`, `RECOVERY_READ` and `RECOVERY_MANAGE`.
+
+Final verification on 2026-10-12: all 226 tests in 30 suites passed, and the
+production build completed. Its two existing unused-import warnings are in
+`MyAttendance.jsx` (`StatusChip` and `ATTENDANCE_STATUS_COLOR`).

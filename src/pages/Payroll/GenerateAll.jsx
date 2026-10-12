@@ -68,7 +68,7 @@ export default function GenerateAll() {
     <>
       <PageHeader
         title="Generate All Payroll"
-        subtitle="Skips anyone whose period is already generated — safe to re-run. Uses zero for all manual deductions."
+        subtitle="Skips anyone whose period is already generated — safe to re-run. Manual amounts (bonus, incentive, TDS, canteen) are zero; loans, advances and fines are recovered from each employee's own balance."
         actions={
           <Button variant="contained" onClick={handleGenerate} disabled={saving}>
             Generate for everyone

@@ -70,6 +70,35 @@ export const PAYROLL_STATUS = ['GENERATED', 'SUPERSEDED'];
 
 export const SALARY_REVISION_REASON = ['ANNUAL_INCREMENT', 'PROMOTION', 'MARKET_CORRECTION', 'OTHER'];
 
+// Recoveries - amounts the employee owes the company that payroll collects
+// over one or more periods. Listed in the order payroll serves them when a
+// month cannot cover them all (RecoveryType.recoveryOrder on the backend).
+export const RECOVERY_TYPE = ['ADVANCE', 'LOAN', 'FINE', 'OTHER'];
+
+export const RECOVERY_TYPE_LABEL = {
+  ADVANCE: 'Salary advance',
+  LOAN: 'Loan',
+  FINE: 'Fine',
+  OTHER: 'Other recovery',
+};
+
+export const RECOVERY_STATUS = ['ACTIVE', 'ON_HOLD', 'CLOSED', 'CANCELLED'];
+
+export const RECOVERY_STATUS_COLOR = {
+  ACTIVE: 'info',
+  ON_HOLD: 'warning',
+  CLOSED: 'success',
+  CANCELLED: 'default',
+};
+
+export const RECOVERY_TRANSACTION_TYPE_COLOR = {
+  ISSUE: 'info',
+  REPAYMENT: 'success',
+  REVERSAL: 'warning',
+  WAIVER: 'secondary',
+  ADJUSTMENT: 'default',
+};
+
 export const DAYS_OF_WEEK = [
   'MONDAY',
   'TUESDAY',

@@ -395,3 +395,43 @@ open-ended rather than a specific screen:
    runs against them yet.
 5. **Further code-splitting** — Payroll/Attendance/Roster consoles, per
    HANDOFF.md's own note, same pattern as what was just done for Reports.
+
+---
+
+## Current integration update (2026-10-10)
+
+The salary override fix and restored loan/recovery frontend preserve the
+current design system, Rules navigation, weekly-off configuration and work
+policies. All earlier redesign notes are historical; the old claim that no
+automated frontend tests exist no longer applies.
+
+`EmployeeDetail.jsx` keeps its existing salary card/dialog layout while adding
+medical allowance, other allowance and PF basic to Override. A MUI error alert
+uses the existing red status treatment when gross salary and gross wage differ,
+on the card and while editing. The notice is informational, and PF basic is
+excluded from the wage sum. Existing pay/bank visibility and self-edit guards
+were retained while resolving the older stash's duplicate salary cards.
+
+The restored Loans & Recoveries screens use the current MUI cards, grids,
+shared employee picker, DataTable, MoneyText and existing API client. The HR
+sidebar entry is permission-based (`RECOVERY_MANAGE`); the personal workspace
+adds My Loans (`RECOVERY_READ`). The statement binds viewers without `PAY_READ`
+to their own account and hides the picker. Issue and CSV tabs/routes remain
+manage-only. A loan can be entered with a past/current/future issued date and
+without a payroll prerequisite; an explicit recovery period needs month and
+year and can start in the issue month or later.
+
+Salary slips retain the redesigned net-pay panel and add opening/recovered/
+closing recovery balances above it. Payroll generation keeps blank recovery
+fields distinct from explicit zero and resets prefills when employee/period
+changes, preventing a stale response from showing another employee's figures.
+Untouched prefills keep the server's per-loan schedule; only edited fields
+become overrides. Both issue and statement screens discard stale balance
+responses when the employee selection changes or clears.
+The restored attendance bulk-upload screen and biometric exemption field
+coexist with current work policies and weekly-off settings.
+
+Validation used Jest/Testing Library regressions for salary override, loan
+issuance, self statement, access/navigation and recovery prefills. This entry
+does not claim a new browser layout review or live production-data verification.
+The full implementation/behavior notes are in HANDOFF section 22.

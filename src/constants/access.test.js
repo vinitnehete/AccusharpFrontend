@@ -4,6 +4,12 @@ import { ROLE_PERMISSIONS } from './permissions';
 const session = (role, extra = []) => ({ role, permissions: [...(ROLE_PERMISSIONS[role] || []), ...extra] });
 
 describe('area access rules', () => {
+  it('opens recovery reads on read permission and issuance only on manage permission', () => {
+    expect(isAllowed(ACCESS.recoveries, { permissions: [] })).toBe(false);
+    expect(isAllowed(ACCESS.recoveries, session('EMPLOYEE'))).toBe(true);
+    expect(isAllowed(ACCESS.recoveryManage, session('EMPLOYEE'))).toBe(false);
+    expect(isAllowed(ACCESS.recoveryManage, session('EMPLOYEE', ['RECOVERY_MANAGE']))).toBe(true);
+  });
   it('lets a permission-based area in on any one of its permissions, whatever the role', () => {
     expect(isAllowed(ACCESS.leaveApprovals, session('SUPERVISOR'))).toBe(true);
     expect(isAllowed(ACCESS.leaveApprovals, session('EMPLOYEE'))).toBe(false);

@@ -52,6 +52,7 @@ import AttendanceGenerate from './pages/Attendance/Generate';
 import AttendanceRecords from './pages/Attendance/Records';
 import AttendancePolicyRules from './pages/Attendance/PolicyRules';
 import AttendancePolicyEffective from './pages/Attendance/PolicyEffective';
+import AttendanceBulkUpload from './pages/Attendance/BulkUpload';
 import LeaveLayout from './pages/Leave/LeaveLayout';
 import LeaveApply from './pages/Leave/Apply';
 import MyLeaves from './pages/Leave/MyLeaves';
@@ -67,6 +68,11 @@ import PayrollGenerateAll from './pages/Payroll/GenerateAll';
 import PayrollBulkGenerate from './pages/Payroll/BulkGenerate';
 import PayrollList from './pages/Payroll/List';
 import PayrollEmployeeHistory from './pages/Payroll/EmployeeHistory';
+import RecoveriesLayout from './pages/Recoveries/RecoveriesLayout';
+import RecoveryRegister from './pages/Recoveries/Register';
+import IssueRecovery from './pages/Recoveries/Issue';
+import BulkIssueRecoveries from './pages/Recoveries/BulkIssue';
+import RecoveryStatement from './pages/Recoveries/Statement';
 import SalarySlip from './pages/SalarySlips/SalarySlip';
 import MySalarySlip from './pages/SalarySlips/MySalarySlip';
 import RulesLayout from './pages/Rules/RulesLayout';
@@ -273,6 +279,9 @@ function App() {
             <Route path="/attendance" element={<AttendanceConsoleLayout />}>
               <Route index element={<AttendanceGenerate />} />
               <Route path="generate" element={<AttendanceGenerate />} />
+              <Route element={<RequireAccess rule={ACCESS.attendanceBulkUpload} />}>
+                <Route path="bulk-upload" element={<AttendanceBulkUpload />} />
+              </Route>
               <Route path="records" element={<AttendanceRecords />} />
             </Route>
           </Route>
@@ -289,6 +298,18 @@ function App() {
               <Route path="bulk-generate" element={<PayrollBulkGenerate />} />
               <Route path="list" element={<PayrollList />} />
               <Route path="history" element={<PayrollEmployeeHistory />} />
+            </Route>
+          </Route>
+
+          <Route element={<RequireAccess rule={ACCESS.recoveries} />}>
+            <Route path="/recoveries" element={<RecoveriesLayout />}>
+              <Route index element={<RecoveryRegister />} />
+              <Route path="register" element={<RecoveryRegister />} />
+              <Route element={<RequireAccess rule={ACCESS.recoveryManage} />}>
+                <Route path="issue" element={<IssueRecovery />} />
+                <Route path="bulk" element={<BulkIssueRecoveries />} />
+              </Route>
+              <Route path="statement" element={<RecoveryStatement />} />
             </Route>
           </Route>
 

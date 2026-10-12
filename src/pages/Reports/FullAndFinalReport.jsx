@@ -32,6 +32,9 @@ const columns = [
   { field: 'paidLeaveBalanceDays', headerName: 'Paid leave balance', width: 165 },
   { field: 'lastRunAdvanceDeduction', headerName: 'Advance (last run)', width: 165, renderCell: money },
   { field: 'lastRunLoanDeduction', headerName: 'Loan (last run)', width: 150, renderCell: money },
+  // What the settlement actually has to recover - as distinct from whatever
+  // the last run happened to take, which says nothing about the balance.
+  { field: 'outstandingRecoveries', headerName: 'Still owed', width: 140, renderCell: money },
   {
     field: 'gratuityEligible',
     headerName: 'Gratuity',
