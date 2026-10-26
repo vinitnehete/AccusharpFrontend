@@ -25,8 +25,8 @@ export const company = {
 };
 
 export const contact = {
-  email: 'hello@muster.in', // SAMPLE
-  salesEmail: 'sales@muster.in', // SAMPLE
+  email: 'hello@yuktihr.com', // SAMPLE
+  salesEmail: 'sales@yuktihr.com', // SAMPLE
   phone: '+91 00000 00000', // SAMPLE
   addressLines: [
     BRAND.legalName, // SAMPLE

@@ -41,7 +41,7 @@ const NAV = [
 
 // The app itself never sets a document title, so the public pages set one and
 // put it back on the way out - otherwise a visitor who signs in from /services
-// keeps "Services - Muster HRMS" in the tab for the rest of the session.
+// keeps the public page title in the tab for the rest of the session.
 const BASE_TITLE = BRAND.productName;
 const PAGE_TITLES = {
   '/services': 'Services',

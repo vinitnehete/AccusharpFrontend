@@ -1,4 +1,4 @@
-# Muster web app (Accusharp HRMS frontend)
+# YuktiHR web app (Accusharp HRMS frontend)
 
 The React web client for the Accusharp HRMS backend (`../../Accusharp`): org
 masters, employees, rosters, attendance, leave, payroll, salary slips, reports,

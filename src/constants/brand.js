@@ -12,22 +12,17 @@
 //   - the `accusharp.lastActivity` localStorage key (a cross-tab contract)
 //   - API paths, which carry no brand at all
 //
-// On the name: a muster roll is the statutory attendance register every Indian
-// factory already keeps (Factories Act, Form 12; also required under the
-// Contract Labour Act). It is the exact word this product's buyers use for the
-// exact thing it produces - short, a real word, and immediately meaningful to
-// an HR or payroll team without a single line of explanation.
 // ---------------------------------------------------------------------------
 
 export const BRAND = {
   /** Company / brand name on its own. */
-  name: 'Muster',
+  name: 'YuktiHR',
   /** The product, when it needs to be named as a product. */
-  productName: 'Muster HRMS',
+  productName: 'YuktiHR',
   /** Registered entity, for the footer's copyright line. Replace when incorporated. */
-  legalName: 'Muster Technologies Pvt. Ltd.',
+  legalName: 'YuktiHR Technologies Pvt. Ltd.',
   /** Letter in the round brand mark. */
-  initial: 'M',
+  initial: 'Y',
   /** One line, used under the wordmark and in the footer. */
   tagline: 'Every shift accounted for.',
 };
