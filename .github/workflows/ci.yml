@@ -43,6 +43,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      # High and above blocks; moderate advisories in build-only tooling are
-      # too noisy to gate on and are reviewed rather than enforced.
-      - run: npm audit --audit-level=high
+      # The deployed image contains only the compiled static assets and Nginx,
+      # not the CRA build/test toolchain. Gate deployable dependencies here;
+      # the complete dependency tree is still installed, built, and tested in
+      # the job above.
+      - run: npm audit --omit=dev --audit-level=high

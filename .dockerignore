@@ -1,0 +1,18 @@
+.git
+.github
+.idea
+.vscode
+.claude
+
+node_modules
+build
+coverage
+
+# Local configuration and credentials must never enter the image build.
+.env
+.env.*
+!.env.example
+
+*.log
+*.md
+*.csv
