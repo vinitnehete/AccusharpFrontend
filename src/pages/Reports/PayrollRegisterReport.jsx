@@ -39,9 +39,16 @@ const columns = [
   { field: 'tds', headerName: 'TDS', width: 105, renderCell: money },
   { field: 'advanceDeduction', headerName: 'Advance', width: 120, renderCell: money },
   { field: 'loanDeduction', headerName: 'Loan', width: 115, renderCell: money },
+  { field: 'fine', headerName: 'Fine', width: 110, renderCell: money },
+  { field: 'otherDeduction', headerName: 'Other deduction', width: 155, renderCell: money },
   { field: 'canteen', headerName: 'Canteen', width: 115, renderCell: money },
   { field: 'totalDeductions', headerName: 'Total deductions', width: 155, renderCell: money },
   { field: 'netSalary', headerName: 'Net salary', width: 140, renderCell: money },
+  // What is still owed after the run, and what the run could not afford to
+  // take - the two figures that say whether a loan is actually coming down.
+  { field: 'loanClosingBalance', headerName: 'Loan balance', width: 140, renderCell: money },
+  { field: 'advanceClosingBalance', headerName: 'Advance balance', width: 155, renderCell: money },
+  { field: 'recoveryCarriedForward', headerName: 'Carried forward', width: 150, renderCell: money },
 ];
 
 export default function PayrollRegisterReport() {

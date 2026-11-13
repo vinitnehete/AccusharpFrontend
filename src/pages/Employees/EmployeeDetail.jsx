@@ -76,6 +76,26 @@ const weekOffLabel = (days, autoRostered) => {
     .join(', ');
 };
 
+const STRUCTURE_FIELDS = [
+  { name: 'basicDA', label: 'Basic + DA' },
+  { name: 'hra', label: 'HRA' },
+  { name: 'conveyanceAllowance', label: 'Conveyance' },
+  { name: 'educationAllowance', label: 'Education' },
+  { name: 'medicalAllowance', label: 'Medical allowance' },
+  { name: 'otherAllowance', label: 'Other allowance' },
+  { name: 'pfBasic', label: 'PF basic' },
+];
+const WAGE_FIELDS = STRUCTURE_FIELDS.filter((f) => f.name !== 'pfBasic');
+const isSalaryAmount = (value) => value != null && /^(?:\d+(?:\.\d*)?|\.\d+)$/.test(String(value)) && Number.isFinite(Number(value));
+
+// The server rounds each component HALF_UP before adding it. Work in paisa so
+// decimal inputs and floating-point representation do not create false warnings.
+const salaryAmountInPaise = (value) => {
+  const [whole, fraction = ''] = String(value).split('.');
+  return Number(whole) * 100 + Number(fraction.slice(0, 2).padEnd(2, '0')) + (Number(fraction[2] || 0) >= 5 ? 1 : 0);
+};
+const salaryAmountsDiffer = (gross, wage) => isSalaryAmount(gross) && isSalaryAmount(wage) && salaryAmountInPaise(gross) !== salaryAmountInPaise(wage);
+
 export default function EmployeeDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -191,13 +211,21 @@ export default function EmployeeDetail() {
       hra: emp.hra,
       conveyanceAllowance: emp.conveyanceAllowance,
       educationAllowance: emp.educationAllowance,
+      medicalAllowance: emp.medicalAllowance,
+      otherAllowance: emp.otherAllowance,
+      pfBasic: emp.pfBasic,
     });
     setStructureOpen(true);
   };
 
   const handleStructureChange = (name, value) => {
-    setStructureValues((prev) => ({ ...prev, [name]: value.replace(/[^0-9.]/g, '') }));
+    setStructureValues((prev) => ({ ...prev, [name]: value.replace(/[^0-9.-]/g, '') }));
   };
+
+  const structureOk = structureValues && STRUCTURE_FIELDS.every((f) => isSalaryAmount(structureValues[f.name]));
+  const structureGrossWage = structureValues && WAGE_FIELDS.every((f) => isSalaryAmount(structureValues[f.name]))
+    ? WAGE_FIELDS.reduce((sum, f) => sum + salaryAmountInPaise(structureValues[f.name]), 0) / 100
+    : null;
 
   const handleSaveStructure = () => {
     setSavingStructure(true);
@@ -384,6 +412,7 @@ export default function EmployeeDetail() {
                     have to read differently here or somebody will "fix" the
                     wrong one. */}
                 <Field label="Weekly off" value={weekOffLabel(emp.weekOffDays, emp.autoRostersDefaultShift)} />
+                <Field label="Punches biometric" value={emp.attendanceExempt ? 'No — attendance from roster' : 'Yes'} />
                 <Field label="Gender" value={emp.gender ? labelize(emp.gender) : '-'} />
                 <Field
                   label="Joining date"
@@ -469,6 +498,11 @@ export default function EmployeeDetail() {
                   <Field label="Other allowance" value={<MoneyText value={emp.otherAllowance} />} />
                   <Field label="PF basic" value={<MoneyText value={emp.pfBasic} />} />
                 </Grid>
+                {salaryAmountsDiffer(emp.grossSalary, emp.grossSalaryWage) && (
+                  <Alert severity="error" sx={{ mt: 2 }}>
+                    Gross salary and Gross wage (proration base) do not match.
+                  </Alert>
+                )}
               </CardContent>
             </Card>
 
@@ -637,34 +671,46 @@ export default function EmployeeDetail() {
         <DialogTitle>Override salary structure</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Pins these four figures for {emp.employeeName} regardless of the salary rule or a future
-            gross salary change, until regenerated.
+            Sets the allowances and PF basic for {emp.employeeName} and pins Basic + DA, HRA,
+            conveyance and education until regenerated from the salary rule.
           </Typography>
           <Grid container spacing={2}>
             {structureValues &&
-              [
-                { name: 'basicDA', label: 'Basic + DA' },
-                { name: 'hra', label: 'HRA' },
-                { name: 'conveyanceAllowance', label: 'Conveyance' },
-                { name: 'educationAllowance', label: 'Education' },
-              ].map((f) => (
+              STRUCTURE_FIELDS.map((f) => (
                 <Grid key={f.name} size={6}>
                   <TextField
                     fullWidth
                     size="small"
                     label={f.label}
+                    required
                     value={structureValues[f.name] ?? ''}
                     onChange={(e) => handleStructureChange(f.name, e.target.value)}
+                    error={structureValues[f.name] != null && structureValues[f.name] !== '' && !isSalaryAmount(structureValues[f.name])}
+                    helperText={structureValues[f.name] != null && structureValues[f.name] !== '' && !isSalaryAmount(structureValues[f.name]) ? 'Enter a valid amount' : undefined}
                   />
                 </Grid>
               ))}
+            {structureGrossWage != null && (
+              <Grid size={12}>
+                <Typography variant="body2">
+                  Gross wage (proration base): <MoneyText value={structureGrossWage} />
+                </Typography>
+              </Grid>
+            )}
+            {salaryAmountsDiffer(emp.grossSalary, structureGrossWage) && (
+              <Grid size={12}>
+                <Alert severity="error">
+                  Gross salary and Gross wage (proration base) do not match.
+                </Alert>
+              </Grid>
+            )}
           </Grid>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button color="inherit" onClick={() => setStructureOpen(false)}>
             Cancel
           </Button>
-          <Button variant="contained" onClick={handleSaveStructure} disabled={savingStructure}>
+          <Button variant="contained" onClick={handleSaveStructure} disabled={!structureOk || savingStructure}>
             Save override
           </Button>
         </DialogActions>

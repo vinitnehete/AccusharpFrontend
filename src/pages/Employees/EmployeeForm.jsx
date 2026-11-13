@@ -10,10 +10,10 @@ import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import FormHelperText from '@mui/material/FormHelperText';
 import Switch from '@mui/material/Switch';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import FormHelperText from '@mui/material/FormHelperText';
 import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
 import IconButton from '@mui/material/IconButton';
@@ -62,6 +62,7 @@ const emptyForm = {
   otherAllowance: '',
   overtimeEligible: false,
   weekOffDays: null,
+  attendanceExempt: false,
   // Create-time-only escape hatch: skip rule-derivation and pin these four directly
   // (e.g. migrating from an existing payroll system that already has exact figures).
   structureOverride: false,
@@ -175,6 +176,7 @@ export default function EmployeeForm() {
         otherAllowance: emp.otherAllowance ?? '',
         overtimeEligible: !!emp.overtimeEligible,
         weekOffDays: emp.weekOffDays ?? null,
+        attendanceExempt: !!emp.attendanceExempt,
       });
       setLoading(false);
     });
@@ -249,6 +251,7 @@ export default function EmployeeForm() {
       // keeps falling back to Sunday. An empty array is the opposite - the
       // explicit statement that this employee has no weekly off.
       weekOffDays: form.weekOffDays,
+      attendanceExempt: form.attendanceExempt,
       // Omitted entirely (not sent as null/empty) when the toggle is off, so the server
       // still derives the structure from the salary rule exactly as before this existed.
       ...(!isEdit && form.structureOverride
@@ -686,6 +689,22 @@ export default function EmployeeForm() {
                 }
                 label="Overtime eligible"
               />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={form.attendanceExempt}
+                    onChange={(e) => set('attendanceExempt', e.target.checked)}
+                  />
+                }
+                label="Does not punch the biometric device"
+              />
+              <FormHelperText sx={{ mt: -0.5, ml: 6 }}>
+                For senior staff who are not on the eSSL. Attendance is read from their roster —
+                present on every working day, no timing and no overtime — instead of from punches.
+                Without this they would generate as absent all month.
+              </FormHelperText>
             </Grid>
 
             <Grid size={{ xs: 12 }}>

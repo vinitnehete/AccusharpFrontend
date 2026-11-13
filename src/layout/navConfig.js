@@ -10,6 +10,7 @@ import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import BadgeRoundedIcon from '@mui/icons-material/BadgeRounded';
 import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded';
 import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
+import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import ApartmentRoundedIcon from '@mui/icons-material/ApartmentRounded';
 import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded';
@@ -43,6 +44,7 @@ const navConfig = [
       { label: 'Leave Calendar', path: '/leave/calendar', icon: DateRangeRoundedIcon },
       { label: 'Leave Balances', path: '/leave/balances', icon: DonutSmallRoundedIcon },
       { label: 'My Salary Slip', path: '/salary-slips/me', icon: ReceiptLongRoundedIcon },
+      { label: 'My Loans', path: '/recoveries/statement', icon: AccountBalanceRoundedIcon, access: ACCESS.recoveryRead },
     ],
   },
   {
@@ -80,6 +82,12 @@ const navConfig = [
         access: ACCESS.attendanceConsole,
       },
       { label: 'Payroll', path: '/payroll/list', icon: PaymentsRoundedIcon, access: ACCESS.payroll },
+      {
+        label: 'Loans & Recoveries',
+        path: '/recoveries/register',
+        icon: AccountBalanceRoundedIcon,
+        access: ACCESS.recoveryManage,
+      },
       {
         label: 'Salary Slips',
         path: '/salary-slips',

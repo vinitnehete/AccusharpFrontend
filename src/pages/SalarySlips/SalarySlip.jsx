@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -189,6 +190,51 @@ export default function SalarySlip({ fixedEmployeeId }) {
                   </Grid>
                 ))}
               </Grid>
+              {slip.recoveryBalances?.length > 0 && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Loans &amp; recoveries
+                  </Typography>
+                  <Table size="small">
+                    <TableBody>
+                      <TableRow>
+                        <TableCell sx={{ border: 0, pl: 0 }} />
+                        <TableCell sx={{ border: 0 }} align="right">
+                          <Typography variant="caption" color="text.secondary">
+                            Opening balance
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ border: 0 }} align="right">
+                          <Typography variant="caption" color="text.secondary">
+                            Recovered
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ border: 0, pr: 0 }} align="right">
+                          <Typography variant="caption" color="text.secondary">
+                            Balance
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                      {slip.recoveryBalances.map((balance) => (
+                        <TableRow key={balance.label}>
+                          <TableCell sx={{ border: 0, pl: 0 }}>{balance.label}</TableCell>
+                          <TableCell sx={{ border: 0 }} align="right">
+                            <MoneyText value={balance.openingBalance} />
+                          </TableCell>
+                          <TableCell sx={{ border: 0 }} align="right">
+                            <MoneyText value={balance.recovered} />
+                          </TableCell>
+                          <TableCell sx={{ border: 0, pr: 0, fontWeight: 600 }} align="right">
+                            <MoneyText value={balance.closingBalance} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </>
+              )}
+
 
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}

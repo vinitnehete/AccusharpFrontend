@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader';
@@ -17,11 +17,24 @@ import PageHeader from '../../components/PageHeader';
 import EmployeePicker from '../../components/EmployeePicker';
 import MoneyText from '../../components/MoneyText';
 import payrollApi from '../../api/payroll';
+import recoveriesApi from '../../api/recoveries';
+import RecoveryBalances from '../Recoveries/RecoveryBalances';
 import { useActingAs } from '../../context/ActingAsContext';
 
-const MONEY_FIELDS = [
+// The four recovery fields are pre-filled from the employee's loan/advance/fine
+// ledger when one is selected, and left blank otherwise. Blank is not zero on
+// these: it tells the backend to recover whatever the ledger schedules (see
+// PayrollRequest.java), which is what makes Generate All and the CSV run
+// collect instalments without anyone typing a figure. Clearing a box back to
+// blank restores that behaviour; typing 0 deliberately skips the instalment.
+const RECOVERY_FIELDS = [
   { name: 'advanceDeduction', label: 'Advance deduction' },
   { name: 'loanDeduction', label: 'Loan deduction' },
+  { name: 'fine', label: 'Fine' },
+  { name: 'otherDeduction', label: 'Other deduction' },
+];
+
+const MONEY_FIELDS = [
   { name: 'tds', label: 'TDS' },
   { name: 'canteen', label: 'Canteen' },
   { name: 'bonus', label: 'Bonus' },
@@ -98,14 +111,15 @@ export default function Generate() {
   const [employeeId, setEmployeeId] = useState(null);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
-  const [amounts, setAmounts] = useState({
-    advanceDeduction: 0,
-    loanDeduction: 0,
-    tds: 0,
-    canteen: 0,
-    bonus: 0,
-    incentive: 0,
+  const [amounts, setAmounts] = useState({ tds: 0, canteen: 0, bonus: 0, incentive: 0 });
+  const [recoveries, setRecoveries] = useState({
+    advanceDeduction: '',
+    loanDeduction: '',
+    fine: '',
+    otherDeduction: '',
   });
+  const [schedule, setSchedule] = useState(null);
+  const [recoveryOverrides, setRecoveryOverrides] = useState({});
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState(null);
   const [conflict, setConflict] = useState(false);
@@ -113,11 +127,46 @@ export default function Generate() {
 
   const isValid = employeeId && month >= 1 && month <= 12 && year;
 
+  // Pre-fill from the ledger so HR runs payroll seeing the amounts that are
+  // about to apply, rather than typing them from memory or leaving zeros in
+  // place that quietly recover nothing.
+  useEffect(() => {
+    let active = true;
+    setSchedule(null);
+    setRecoveryOverrides({});
+    setRecoveries({ advanceDeduction: '', loanDeduction: '', fine: '', otherDeduction: '' });
+    if (!isValid) {
+      return;
+    }
+    recoveriesApi
+      .schedule(employeeId, Number(month), Number(year))
+      .then((res) => {
+        if (!active) return;
+        setSchedule(res);
+        setRecoveries({
+          advanceDeduction: String(res.advanceDeduction ?? ''),
+          loanDeduction: String(res.loanDeduction ?? ''),
+          fine: String(res.fine ?? ''),
+          otherDeduction: String(res.otherDeduction ?? ''),
+        });
+      })
+      .catch(() => {
+        if (active) setSchedule(null);
+      });
+    return () => { active = false; };
+  }, [employeeId, month, year]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A blank recovery box is sent as null, not 0 - the two mean different
+  // things to the backend, and collapsing them would turn "use the schedule"
+  // into "skip the instalment".
   const buildPayload = () => ({
     employeeId,
     month: Number(month),
     year: Number(year),
     ...amounts,
+    ...Object.fromEntries(
+      Object.entries(recoveries).map(([key, value]) => [key, !recoveryOverrides[key] || value === '' ? null : Number(value)])
+    ),
     generatedBy: actingAs?.userId,
   });
 
@@ -128,6 +177,12 @@ export default function Generate() {
       .then((res) => {
         setResult(res);
         setDebugRow(null);
+        // The run just moved the balances - re-read them so the panel isn't
+        // showing what was owed before this payroll recovered against it.
+        recoveriesApi
+          .schedule(employeeId, Number(month), Number(year))
+          .then(setSchedule)
+          .catch(() => {});
         enqueueSnackbar('Payroll generated', { variant: 'success' });
       })
       .catch((err) => {
@@ -194,8 +249,43 @@ export default function Generate() {
               </Grid>
             ))}
           </Grid>
+
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+            Recoveries
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+            Pre-filled from this employee&apos;s loan, advance and fine balances. Leave a box blank to
+            recover whatever is scheduled, or type an amount to override it for this period only — an
+            explicit 0 skips the instalment. Anything the period can&apos;t afford stays owed and is taken
+            from the next one.
+          </Typography>
+          <Grid container spacing={2}>
+            {RECOVERY_FIELDS.map((f) => (
+              <Grid key={f.name} size={{ xs: 6, sm: 4, md: 3 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label={f.label}
+                  value={recoveries[f.name]}
+                  placeholder="Scheduled"
+                  onChange={(e) => {
+                    setRecoveryOverrides((prev) => ({ ...prev, [f.name]: true }));
+                    setRecoveries((prev) => ({
+                      ...prev,
+                      [f.name]: e.target.value.replace(/[^0-9.]/g, ''),
+                    }));
+                  }}
+                />
+              </Grid>
+            ))}
+          </Grid>
         </CardContent>
       </Card>
+
+      {schedule && schedule.totalOutstanding > 0 && (
+        <RecoveryBalances statement={schedule} title="What this employee owes" />
+      )}
 
       {conflict && (
         <>
@@ -264,9 +354,40 @@ export default function Generate() {
               <Field label="TDS" value={<MoneyText value={result.tds} />} />
               <Field label="Advance" value={<MoneyText value={result.advanceDeduction} />} />
               <Field label="Loan" value={<MoneyText value={result.loanDeduction} />} />
+              <Field label="Fine" value={<MoneyText value={result.fine} />} />
+              <Field label="Other deduction" value={<MoneyText value={result.otherDeduction} />} />
               <Field label="Canteen" value={<MoneyText value={result.canteen} />} />
               <Field label="Total deductions" value={<MoneyText value={result.totalDeduction} />} />
             </Grid>
+
+            {Number(result.loanClosingBalance ?? 0) > 0 ||
+            Number(result.advanceClosingBalance ?? 0) > 0 ||
+            Number(result.fineClosingBalance ?? 0) > 0 ||
+            Number(result.otherClosingBalance ?? 0) > 0 ||
+            Number(result.recoveryCarriedForward ?? 0) > 0 ? (
+              <>
+                <Divider sx={{ mb: 2 }} />
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Recovery balances
+                </Typography>
+                <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                  <Field label="Loan opening" value={<MoneyText value={result.loanOpeningBalance} />} />
+                  <Field label="Loan remaining" value={<MoneyText value={result.loanClosingBalance} />} />
+                  <Field label="Advance opening" value={<MoneyText value={result.advanceOpeningBalance} />} />
+                  <Field label="Advance remaining" value={<MoneyText value={result.advanceClosingBalance} />} />
+                  <Field label="Fine remaining" value={<MoneyText value={result.fineClosingBalance} />} />
+                  <Field label="Other remaining" value={<MoneyText value={result.otherClosingBalance} />} />
+                </Grid>
+                {Number(result.recoveryCarriedForward ?? 0) > 0 && (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    <MoneyText value={result.recoveryCarriedForward} /> could not be recovered this period
+                    without taking net pay below the floor — it stays outstanding and will be deducted from
+                    the next payroll.
+                  </Alert>
+                )}
+              </>
+            ) : null}
+
             <Divider sx={{ mb: 2 }} />
             <Typography variant="h6">
               Net salary: <MoneyText value={result.netSalary} />

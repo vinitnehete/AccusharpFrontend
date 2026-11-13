@@ -12,6 +12,8 @@ describe('sidebar visibility', () => {
 
     expect(sectionLabels(visible)).toEqual(['My Workspace']);
     expect(labels(visible)).not.toContain('Dashboard');
+    expect(labels(visible)).toContain('My Loans');
+    expect(labels(visible)).not.toContain('Loans & Recoveries');
   });
 
   it('shows a supervisor their team tools and team-scoped reports, not HR administration', () => {
@@ -25,6 +27,7 @@ describe('sidebar visibility', () => {
     expect(shown).not.toContain('Attendance Console');
     expect(shown).not.toContain('Rules');
     expect(shown).not.toContain('Custom Roles');
+    expect(shown).not.toContain('Loans & Recoveries');
   });
 
   it('shows HR the administration area but not role management or the audit log', () => {
@@ -32,6 +35,7 @@ describe('sidebar visibility', () => {
 
     expect(shown).toEqual(expect.arrayContaining([
       'Employees', 'All Leaves', 'Attendance Console', 'Payroll', 'Salary Slips', 'Masters', 'Rules', 'Reports',
+      'Loans & Recoveries',
     ]));
     // Shifts and holidays are rules: they are tabs on the Rules page now, not sidebar items.
     expect(shown).not.toContain('Shifts');

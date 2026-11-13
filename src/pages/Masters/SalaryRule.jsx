@@ -44,6 +44,14 @@ const OTHER_FIELDS = [
   { name: 'dayWiseDaysInMonth', label: 'Day-wise days in month', suffix: 'days' },
   { name: 'standardHoursPerDay', label: 'Standard hours/day', suffix: 'hrs' },
   { name: 'overtimeRateMultiplier', label: 'Overtime rate multiplier', suffix: 'x' },
+  // 0 still guarantees net pay never goes negative; raising it protects a
+  // minimum take-home, and whatever a period can't recover under the floor
+  // stays owed for the next one rather than being written off.
+  {
+    name: 'recoveryMinimumNetPercent',
+    label: 'Protected net pay (loans & fines cannot go below)',
+    suffix: '%',
+  },
 ];
 
 function NumberSection({ title, fieldsList, values, onChange, readOnly }) {
@@ -115,6 +123,7 @@ export default function SalaryRule() {
       standardHoursPerDay,
       overtimeRateMultiplier,
       mlwfAmount,
+      recoveryMinimumNetPercent,
     } = values;
     salaryRulesApi
       .update({
@@ -134,6 +143,7 @@ export default function SalaryRule() {
         standardHoursPerDay,
         overtimeRateMultiplier,
         mlwfAmount,
+        recoveryMinimumNetPercent,
       })
       .then((updated) => {
         setValues(updated);

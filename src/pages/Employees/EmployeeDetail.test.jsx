@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import EmployeeDetail from './EmployeeDetail';
@@ -14,7 +14,9 @@ jest.mock('react-router-dom', () => {
     Link: forwardRef(({ to, children, ...rest }, ref) => <a ref={ref} href={to} {...rest}>{children}</a>),
   };
 });
-jest.mock('../../api/employees', () => ({ get: jest.fn(), team: jest.fn(), getSalaryRevisions: jest.fn() }));
+jest.mock('../../api/employees', () => ({
+  get: jest.fn(), team: jest.fn(), getSalaryRevisions: jest.fn(), updateSalaryStructure: jest.fn(),
+}));
 jest.mock('../../api/customRoles', () => ({ listForEmployee: jest.fn(), list: jest.fn() }));
 jest.mock('../../context/AuthContext', () => ({ useAuth: jest.fn() }));
 jest.mock('../../context/ActingAsContext', () => ({ useActingAs: () => ({ employees: [], actingAs: null }) }));
@@ -29,6 +31,14 @@ const sunil = {
   recordStatus: 'ACTIVE',
   status: 'PERMANENT',
   grossSalary: 20000,
+  grossSalaryWage: 20000,
+  basicDA: 10000,
+  hra: 4000,
+  conveyanceAllowance: 2000,
+  educationAllowance: 1000,
+  medicalAllowance: 1000,
+  otherAllowance: 2000,
+  pfBasic: 15000,
   weekOffDays: ['SUNDAY'],
 };
 
@@ -46,6 +56,114 @@ beforeEach(() => {
   employeesApi.get.mockResolvedValue(sunil);
   employeesApi.team.mockResolvedValue([]);
   employeesApi.getSalaryRevisions.mockResolvedValue([]);
+  employeesApi.updateSalaryStructure.mockResolvedValue(sunil);
+});
+
+describe('Salary structure override', () => {
+  const mismatchMessage = 'Gross salary and Gross wage (proration base) do not match.';
+  const openOverride = async () => {
+    renderAs(['EMPLOYEE_READ', 'EMPLOYEE_UPDATE'], { username: 'HR001' });
+    fireEvent.click(await screen.findByRole('button', { name: /^override$/i }));
+    return within(screen.getByRole('dialog', { name: 'Override salary structure' }));
+  };
+
+  it('prefills all salary components and saves edited allowances and PF basic with the structure', async () => {
+    employeesApi.get.mockResolvedValueOnce(sunil).mockResolvedValue({
+      ...sunil, medicalAllowance: 1500.25, otherAllowance: 2500.50, pfBasic: 18000, grossSalaryWage: 21000.75,
+    });
+    const dialog = await openOverride();
+    expect(dialog.getByRole('textbox', { name: /medical allowance/i })).toHaveValue('1000');
+    expect(dialog.getByRole('textbox', { name: /other allowance/i })).toHaveValue('2000');
+    expect(dialog.getByRole('textbox', { name: /pf basic/i })).toHaveValue('15000');
+
+    fireEvent.change(dialog.getByRole('textbox', { name: /medical allowance/i }), { target: { value: '1500.25' } });
+    fireEvent.change(dialog.getByRole('textbox', { name: /other allowance/i }), { target: { value: '2500.50' } });
+    fireEvent.change(dialog.getByRole('textbox', { name: /pf basic/i }), { target: { value: '18000' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Save override' }));
+
+    await waitFor(() => expect(employeesApi.updateSalaryStructure).toHaveBeenCalledWith(12, {
+      basicDA: 10000,
+      hra: 4000,
+      conveyanceAllowance: 2000,
+      educationAllowance: 1000,
+      medicalAllowance: '1500.25',
+      otherAllowance: '2500.50',
+      pfBasic: '18000',
+    }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Override salary structure' })).not.toBeInTheDocument());
+    expect(await screen.findByRole('alert')).toHaveTextContent(mismatchMessage);
+  });
+
+  it.each(['Medical allowance', 'Other allowance', 'PF basic'])(
+    'requires a valid %s amount and accepts zero', async (label) => {
+      const dialog = await openOverride();
+      const input = dialog.getByRole('textbox', { name: new RegExp(label, 'i') });
+      const save = dialog.getByRole('button', { name: 'Save override' });
+
+      fireEvent.change(input, { target: { value: '' } });
+      expect(save).toBeDisabled();
+      fireEvent.change(input, { target: { value: '1..5' } });
+      expect(save).toBeDisabled();
+      fireEvent.change(input, { target: { value: '-1' } });
+      expect(save).toBeDisabled();
+      fireEvent.change(input, { target: { value: '0' } });
+      expect(save).toBeEnabled();
+    }
+  );
+
+  it('keeps missing amounts blank until supplied and does not warn for an unavailable gross wage', async () => {
+    employeesApi.get.mockResolvedValue({ ...sunil, grossSalaryWage: null, medicalAllowance: null, otherAllowance: undefined, pfBasic: null });
+    const dialog = await openOverride();
+
+    expect(screen.queryByText(mismatchMessage)).not.toBeInTheDocument();
+    for (const label of ['Medical allowance', 'Other allowance', 'PF basic']) {
+      expect(dialog.getByRole('textbox', { name: new RegExp(label, 'i') })).toHaveValue('');
+    }
+    expect(dialog.getByRole('button', { name: 'Save override' })).toBeDisabled();
+  });
+
+  it('shows an error warning on the salary card when the gross wage differs by one paisa', async () => {
+    employeesApi.get.mockResolvedValue({ ...sunil, grossSalaryWage: '19999.99' });
+    renderAs(['EMPLOYEE_READ', 'EMPLOYEE_UPDATE']);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(mismatchMessage);
+  });
+
+  it.each([
+    { grossSalary: '20000.00', grossSalaryWage: 20000 },
+    { grossSalary: 0.3, grossSalaryWage: 0.1 + 0.2 },
+    { grossSalary: 0, grossSalaryWage: '0.00' },
+    { grossSalary: null, grossSalaryWage: 20000 },
+    { grossSalary: 20000, grossSalaryWage: undefined },
+  ])('does not warn for equal monetary amounts or unavailable totals: %o', async (totals) => {
+    employeesApi.get.mockResolvedValue({ ...sunil, ...totals });
+    renderAs(['EMPLOYEE_READ', 'EMPLOYEE_UPDATE']);
+
+    await screen.findByText('Salary structure');
+    expect(screen.queryByText(mismatchMessage)).not.toBeInTheDocument();
+  });
+
+  it('updates the warning as allowances change, excludes PF basic from gross wage and allows saving a mismatch', async () => {
+    const dialog = await openOverride();
+    const medical = dialog.getByRole('textbox', { name: /medical allowance/i });
+    expect(dialog.queryByText(mismatchMessage)).not.toBeInTheDocument();
+
+    fireEvent.change(dialog.getByRole('textbox', { name: /pf basic/i }), { target: { value: '18000' } });
+    expect(dialog.queryByText(mismatchMessage)).not.toBeInTheDocument();
+    fireEvent.change(medical, { target: { value: '1000.01' } });
+    expect(dialog.getByRole('alert')).toHaveTextContent(mismatchMessage);
+    expect(dialog.getByRole('button', { name: 'Save override' })).toBeEnabled();
+    fireEvent.change(medical, { target: { value: '1000' } });
+    expect(dialog.queryByText(mismatchMessage)).not.toBeInTheDocument();
+  });
+
+  it('rounds each component to paisa before comparing the live gross wage', async () => {
+    employeesApi.get.mockResolvedValue({ ...sunil, grossSalary: 20000.02, grossSalaryWage: 20000.02, medicalAllowance: '1000.005', otherAllowance: '2000.005' });
+    const dialog = await openOverride();
+
+    expect(dialog.getByText('Gross wage (proration base):')).toHaveTextContent('20,000.02');
+    expect(dialog.queryByText(mismatchMessage)).not.toBeInTheDocument();
+  });
 });
 
 describe('Employee profile', () => {

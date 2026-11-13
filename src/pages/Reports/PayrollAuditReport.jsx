@@ -48,7 +48,13 @@ const columns = [
   { field: 'esic', headerName: 'ESIC', width: 105, renderCell: money },
   { field: 'professionalTax', headerName: 'PT', width: 100, renderCell: money },
   { field: 'tds', headerName: 'TDS', width: 105, renderCell: money },
+  { field: 'advanceDeduction', headerName: 'Advance', width: 120, renderCell: money },
+  { field: 'loanDeduction', headerName: 'Loan', width: 115, renderCell: money },
+  { field: 'fine', headerName: 'Fine', width: 110, renderCell: money },
+  { field: 'otherDeduction', headerName: 'Other', width: 115, renderCell: money },
   { field: 'totalDeduction', headerName: 'Deductions', width: 135, renderCell: money },
+  { field: 'loanClosingBalance', headerName: 'Loan balance', width: 140, renderCell: money },
+  { field: 'recoveryCarriedForward', headerName: 'Carried forward', width: 150, renderCell: money },
   { field: 'netSalary', headerName: 'Net salary', width: 140, renderCell: money },
 ];
 
